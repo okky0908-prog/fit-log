@@ -832,8 +832,10 @@ CREATE INDEX idx_users_display_name_bigm  ON users    USING gin (LOWER(display_n
 |---|---|
 | 1件に対して1件（投稿 → 投稿者、セット → 種目） | `JOIN` |
 | 件数・有無（ナイストレーニング数、付けたかどうか、コメント数、応援の数） | 同じ SQL の中のサブクエリ（`COUNT(*)`・`EXISTS`） |
-| 1件に対して複数件（投稿 → 種目 → セット、投稿 → 画像） | `multiset`（PostgreSQL が入れ子を JSON にまとめて返す。`LIMIT 20` が「20件の投稿」のまま保てる） |
+| 1件に対して複数件（記録の詳細の投稿 → 種目 → セット、投稿 → 画像） | `multiset`（PostgreSQL が入れ子を JSON にまとめて返す。`LIMIT 20` が「20件の投稿」のまま保てる） |
 | 自己ベストの印 | ページの投稿の ID を `ANY(:workout_ids)` で渡し、1回の SQL で求める（[自己ベスト](#自己ベストと自己ベスト更新の印)） |
+| 一覧の種目の要約（投稿 → 先頭5種目の要約） | `multiset` の中で、種目（`workout_exercises`）ごとにセットを `GROUP BY` で集計する（セット数・全セットが同じ値か・最大のセット・合計）。セットの行そのものは取らない。種目の数は `COUNT(*)` のサブクエリ（[API 設計の WorkoutCard](./api.md#workoutcard記録の一覧の1件a-50a-51a-54a-81a-93)） |
+| コメント → 返信（先頭3件） | `multiset` の中で `ORDER BY created_at, id LIMIT 3`。返信の数は `COUNT(*)` のサブクエリ（[API 設計の Comment](./api.md#commenta-60a-61a-65)） |
 
 - 一覧の API を足したら、「件数が少ないときと多いときで、DB に送る SQL の数が同じ」ことを確かめるテストを書く（前回と同じ）
 

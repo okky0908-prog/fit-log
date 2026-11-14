@@ -186,6 +186,7 @@
 | 非同期の処理 | Spring のイベント（`@TransactionalEventListener`・`@Async`） | 新規 | 追加のライブラリは不要。3.6 |
 | メール | spring-boot-starter-mail（手元・テストの SMTP 用）、AWS SDK for Java v2 の `sesv2`（本番用） | 新規 | 3.8 |
 | S3 | AWS SDK for Java v2（`software.amazon.awssdk:bom`。前回は 2.55.14） | ○ | 署名付き URL は `S3Presigner` で作る。3.9 |
+| 画像の付属データの読み取り | metadata-extractor（版は実装のときに決める） | 新規 | 位置情報を含む画像を受け付けないため（[API 設計 A-20](./api.md#a-20-記録の作成)）。JPEG・PNG・WebP の EXIF・XMP を読める |
 | テスト | JUnit 5 + Spring Boot Test（MockMvc） | ○ | |
 | テスト用の DB・S3・メール | Testcontainers（PostgreSQL は pg_bigm 入りの自作イメージ、LocalStack、Mailpit） | ○ | Mailpit は新規 |
 | 非同期の処理のテスト | Awaitility（Spring Boot が管理する版） | 新規 | 3.6 |
