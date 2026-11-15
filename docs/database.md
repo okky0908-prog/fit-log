@@ -231,7 +231,7 @@ erDiagram
 | used_at | TIMESTAMPTZ | ○ | | 使った日時。NULL ならまだ使っていない |
 | created_at | TIMESTAMPTZ | × | | 発行日時 |
 
-- 再設定に使えるのは `used_at IS NULL AND expires_at > now()` の行だけ。使ったら `used_at` を入れる（1回だけ使える）。2つの端末で同時に使われても1回にするため、`UPDATE … SET used_at = now() WHERE id = ? AND used_at IS NULL` の更新件数が1件のときだけ、パスワードを変える
+- 再設定に使えるのは `used_at IS NULL AND expires_at > :now` の行だけ（期限ちょうどは使えない）。使ったら `used_at` を入れる（1回だけ使える）。2つの端末で同時に使われても1回にするため、`UPDATE … SET used_at = :now WHERE id = ? AND used_at IS NULL` の更新件数が1件のときだけ、パスワードを変える。`:now` はアプリの `Clock` の時刻（[テスト計画書 4.4](./test-plan.md#44-日付と日本時間)）
 - 再設定が済んだら、そのユーザーのまだ使っていないほかの再設定用トークンも使えなくする（`used_at` を入れる）
 - 期限切れの行は、リフレッシュトークンと同じ掃除の処理で消す
 
@@ -246,7 +246,7 @@ erDiagram
 | mail_type | VARCHAR(20) | × | CHECK IN ('verify_email', 'password_reset') | メールの種類 |
 | sent_at | TIMESTAMPTZ | × | | 送った日時 |
 
-- 送る前に `SELECT COUNT(*) FROM mail_send_logs WHERE email = ? AND sent_at > now() - interval '1 hour'` が5未満であることを確かめる
+- 送る前に `SELECT COUNT(*) FROM mail_send_logs WHERE email = ? AND sent_at > :now - interval '1 hour'` が5未満であることを確かめる。`:now` は DB の `now()` ではなくアプリの `Clock` の時刻を渡す（テストで時計を進めて確かめるため。[テスト計画書 4.8](./test-plan.md#48-アカウントの安全)）
 - users を参照しない（外部キーを持たない）。登録されていないアドレスや、変更前の新しいアドレスにも送るため
 - 退会しても行は消えないが、1日より古い行は毎日の掃除で消すので、メールアドレスが長く残ることはない
 
