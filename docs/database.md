@@ -247,6 +247,7 @@ erDiagram
 | sent_at | TIMESTAMPTZ | × | | 送った日時 |
 
 - 送る前に `SELECT COUNT(*) FROM mail_send_logs WHERE email = ? AND sent_at > :now - interval '1 hour'` が5未満であることを確かめる。`:now` は DB の `now()` ではなくアプリの `Clock` の時刻を渡す（テストで時計を進めて確かめるため。[テスト計画書 4.8](./test-plan.md#48-アカウントの安全)）
+- 同じアドレスに同時に2通送ると、どちらも「まだ4通」と数えて6通になりうるので、**数える前に送り先のアドレスでロックする**（`SELECT pg_advisory_xact_lock(hashtext(:email))`。トランザクションの終わりで外れる）。users の行がないアドレスにも送るので、[件数の上限の守り方](#件数の上限の守り方)の users の行のロックは使えない
 - users を参照しない（外部キーを持たない）。登録されていないアドレスや、変更前の新しいアドレスにも送るため
 - 退会しても行は消えないが、1日より古い行は毎日の掃除で消すので、メールアドレスが長く残ることはない
 
@@ -565,12 +566,13 @@ erDiagram
 | goal_type | period | metric | exercise_id | body_part | deadline・achieved_on | target_value | visibility |
 |---|---|---|---|---|---|---|---|
 | frequency | 必須 | NULL | NULL | NULL | NULL | 整数（`target_value = TRUNC(target_value)`）。week は 1〜7、month は 1〜31 | どれでも |
-| volume | 必須 | 必須 | 任意 | 任意（exercise_id と同時には入れない） | NULL | > 0 | どれでも |
-| weight | NULL | NULL | 必須 | NULL | 任意 | > 0 | どれでも |
+| volume | 必須 | 必須 | 任意 | 任意（exercise_id と同時には入れない） | NULL | metric ごとに：volume は 0.453〜999,999（lb で入力した 1lb ＝ 0.454kg まで受ける）、duration は 1〜44,640 の整数、distance は 0.01〜15,500 | どれでも |
+| weight | NULL | NULL | 必須 | NULL | 任意 | 0.226〜500（`workout_sets.weight_kg` と同じ） | どれでも |
 | body_weight | NULL | NULL | NULL | NULL | 任意 | 19.95〜300 | **`private` だけ**（体重の目標は公開できない） |
 
 - **開始時の体重**は列に持たず、`started_on` 以前で一番近い日の `body_records` から毎回求める。体重の記録を消したときに「次に近い記録を開始時の体重にする」（S-25）を、そのまま満たせる。`started_on` 以前の記録がすべて消えた場合は、`started_on` より後で一番近い記録を使う
-- **期限切れ**は列に持たず、`deadline < 今日 AND achieved_on IS NULL` で判定する
+- **期限切れ**は列に持たず、`deadline < 今日 AND achieved_on IS NULL` で判定する。期限切れの目標は達成の判定をしない（F-104 の決まり。達成日を入れる `UPDATE` に `AND (deadline IS NULL OR deadline >= :today)` を付ける）
+- 目標値の刻み（0.25kg・0.5lb など）は入力した単位で決まるので、CHECK では範囲だけを止め、刻みはアプリで確かめる
 - **達成済み以外の目標の数**（10件まで）は、`achieved_on IS NULL` の行を数える（くり返しの目標は、達成済みにならないので、ずっと数に入る）
 - 重量・量の目標の種目は、最初から用意された種目か本人の自分専用の種目であること、重量の目標なら「重量 × 回数」の種目であることを、アプリで確かめる
 - `exercise_id` を `NO ACTION` にする理由は、`workout_exercises` と同じ（退会のとき、目標と自分専用の種目が同じ `DELETE` 文の中で消えるため）
