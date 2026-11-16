@@ -339,7 +339,7 @@ S3 のバケットは公開しないので、画像（記録の画像・アイ�
       "setCount": 3, "uniform": true, "weightKg": 60.000, "reps": 10 },
     { "exerciseId": 16, "name": "スクワット", "recordType": "weight_reps", "personalBest": false,
       "setCount": 3, "uniform": false, "weightKg": 100.000, "reps": 5 },
-    { "exerciseId": 30, "name": "腕立て伏せ", "recordType": "reps_only", "personalBest": false,
+    { "exerciseId": 8, "name": "腕立て伏せ", "recordType": "reps", "personalBest": false,
       "setCount": 3, "uniform": false, "totalReps": 55 },
     { "exerciseId": 48, "name": "ランニング", "recordType": "time_distance", "personalBest": false,
       "setCount": 1, "durationSec": 1800, "distanceKm": 5.000, "paceSecPerKm": 360 }

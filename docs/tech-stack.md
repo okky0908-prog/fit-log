@@ -182,7 +182,7 @@
 | JWT | JJWT（`jjwt-api`・`jjwt-impl`・`jjwt-gson`。前回は 0.13.0） | ○ | Jackson 2 と混ざらないよう、前回と同じく Gson を使う |
 | パスワードのハッシュ化 | BCrypt（Spring Security に含まれる） | ○ | |
 | DB アクセス | **jOOQ**（`spring-boot-starter-jooq`。版は Spring Boot が管理） | 変更 | 前回は MyBatis。3.3 |
-| jOOQ のコード生成 | jOOQ の Gradle プラグイン（`org.jooq.jooq-codegen-gradle`）・Testcontainers（未定） | 新規 | 3.3 |
+| jOOQ のコード生成 | `jooq-codegen`（版は Spring Boot が管理。段階 0 で 3.21.9）を、自作の小さなプログラム（`backend/src/codegen`）から Gradle の `generateJooq` タスクで動かす。Testcontainers で pg_bigm 入りのコンテナを立ち上げ、Flyway でテーブルを作ってから生成する | 新規 | 3.3。jOOQ の Gradle プラグインにしなかったのは、プラグインの設定はビルドの準備の段階で決まり、コンテナの接続先（起動するまで分からない）を渡しにくいため。マイグレーションが変わらない限り、Gradle は前回の結果を使う。jOOQ の無償版は PostgreSQL の最新版を対象にしているため、生成のときに「DB の版が古い」という警告が出るが、PostgreSQL 17 の機能の範囲では問題ない |
 | 非同期の処理 | Spring のイベント（`@TransactionalEventListener`・`@Async`） | 新規 | 追加のライブラリは不要。3.6 |
 | メール | spring-boot-starter-mail（手元・テストの SMTP 用）、AWS SDK for Java v2 の `sesv2`（本番用） | 新規 | 3.8 |
 | S3 | AWS SDK for Java v2（`software.amazon.awssdk:bom`。前回は 2.55.14） | ○ | 署名付き URL は `S3Presigner` で作る。3.9 |
@@ -199,7 +199,7 @@
 | 項目 | 技術・バージョン | 前回 | 理由・補足 |
 |---|---|---|---|
 | DB | PostgreSQL 17（手元・テストは pg_bigm 入りの自作イメージ、AWS は RDS for PostgreSQL 17） | ○ | 3.2 |
-| 日本語の検索 | pg_bigm（未定） | 新規 | 3.2 |
+| 日本語の検索 | pg_bigm 1.2-20250903 | 新規 | 3.2。公式のイメージにも PostgreSQL の公式の apt リポジトリにもないため、`db/Dockerfile` でソースからビルドする（ダウンロードしたファイルの SHA-256 を確かめる） |
 | JDBC ドライバ | PostgreSQL JDBC（Spring Boot が管理する版） | ○ | |
 | マイグレーション | Flyway（`flyway-database-postgresql`。前回は 12.4.0） | ○ | pg_bigm の拡張の作成もマイグレーションで行う |
 
