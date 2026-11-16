@@ -62,6 +62,8 @@ val generateJooq by tasks.registering(JavaExec::class) {
     systemProperty("org.jooq.no-logo", "true")
     systemProperty("org.jooq.no-tips", "true")
     systemProperty("org.slf4j.simpleLogger.defaultLogLevel", "warn")
+    // DB の版の確認と警告を止める（application.yml の logging.level と同じ理由）
+    systemProperty("org.slf4j.simpleLogger.log.org.jooq.impl.DefaultExecuteContext.logVersionSupport", "error")
     inputs.dir(migrationDir).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.dir(dbImageDir).withPathSensitivity(PathSensitivity.RELATIVE)
     outputs.dir(jooqOutputDir)

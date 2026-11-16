@@ -15,3 +15,10 @@ spring:
     virtual:
       # 仮想スレッドを使う（docs/tech-stack.md 3.1）
       enabled: true
+
+logging:
+  level:
+    # jOOQ は DB の接続を受け取るたびに DB の版を調べ、無償版の対象（PostgreSQL の最新版）より古いと警告を出す。
+    # PostgreSQL 17 の機能の範囲では問題ないので、この警告を止める。WARN を無効にすると、jOOQ は版の確認そのものを飛ばす
+    #（docs/tech-stack.md「jOOQ のコード生成」）
+    org.jooq.impl.DefaultExecuteContext.logVersionSupport: error
