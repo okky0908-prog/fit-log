@@ -739,11 +739,11 @@ S3 のバケットは公開しないので、画像（記録の画像・アイ�
 
 ```json
 {
-  "from": "2026-11-10", "to": "2026-11-16",
+  "from": "2026-11-09", "to": "2026-11-15",
   "summary":  { "trainingDays": 4, "totalVolumeKg": 12450.000, "totalDurationSec": 5700, "totalDistanceKm": 15.000,
                 "caloriesKcal": 2150, "caloriesExcludedWorkoutCount": 0 },
   "previous": { "trainingDays": 3, "totalVolumeKg": 11650.000, … },
-  "daily": [ { "date": "2026-11-10", "volumeKg": 3200.000, "durationSec": 0 }, … 7日分 ],
+  "daily": [ { "date": "2026-11-09", "volumeKg": 3200.000, "durationSec": 0 }, … 7日分 ],
   "bodyParts": [ { "bodyPart": "chest", "setCount": 12 }, … ]
 }
 ```
