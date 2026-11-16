@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: fitlog
+  config:
+    # 手元の開発ではリポジトリ直下の .env（docker-compose と共通）から DB の設定を読む。
+    # 本番（AWS）では .env は置かず、環境変数で渡す
+    import: optional:file:../.env[.properties]
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:fitlog}
+    username: ${POSTGRES_USER:fitlog}
+    password: ${POSTGRES_PASSWORD:fitlog}
+  jooq:
+    sql-dialect: postgres
+  threads:
+    virtual:
+      # 仮想スレッドを使う（docs/tech-stack.md 3.1）
+      enabled: true

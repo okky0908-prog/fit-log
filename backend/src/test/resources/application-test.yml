@@ -1,0 +1,7 @@
+# テスト用の設定（@ActiveProfiles("test")）。
+# DB は Testcontainers の使い捨てのコンテナを使う（support/TestcontainersConfiguration が上書きする）。
+# ここでは、わざと存在しない宛先（.invalid は名前解決されない）にしておく。
+# @Import(TestcontainersConfiguration.class) を付け忘れたテストは、開発用の DB（localhost:5432）に書き込まずに、ここで失敗する
+spring:
+  datasource:
+    url: jdbc:postgresql://testcontainers-not-imported.invalid:5432/fitlog

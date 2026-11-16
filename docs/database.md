@@ -948,16 +948,19 @@ CREATE INDEX idx_users_display_name_bigm  ON users    USING gin (LOWER(display_n
 - 一度適用したファイルは書き換えず、変更は新しい番号のファイルで行う
 - 動作確認用のサンプルデータ（ユーザー・投稿など）はマイグレーションに入れず、スクリプトで入れる（前回と同じ）。種目の初期データと `running_mets` は、アプリが動くのに必要なデータなのでマイグレーションに入れる
 
-| ファイル（予定） | 内容 | 実装の段階 |
+| ファイル | 内容 | 実装の段階 |
 |---|---|---|
-| `V1__create_users.sql` | pg_bigm の拡張、users（ユーザー検索の索引を含む） | 認証 |
-| `V2__create_refresh_tokens.sql` | refresh_tokens | 認証 |
-| `V3__create_exercises.sql` | exercises、running_mets と、それぞれの初期データ | 記録 |
-| `V4__create_workouts.sql` | workouts・workout_exercises・workout_sets | 記録 |
-| `V5__create_workout_images.sql` | workout_images | 記録 |
-| `V6__create_follows.sql` | follows（承認の状態を含む） | タイムライン・フォロー |
-| `V7__create_likes.sql` | likes | ナイストレーニング |
-| `V8__create_comments.sql` | comments（返信を含む） | コメント |
+| `V1__create_users.sql`（作成済み） | pg_bigm の拡張、users（ユーザー検索の索引を含む） | 段階 0（種目の外部キーの参照先として先に作った） |
+| `V2__create_exercises.sql`（作成済み） | exercises と初期データ58種目 | 段階 0（テストが1本通る細い道の API に使った。[テスト計画書 8.1](./test-plan.md#81-段階-0-は小さく始める)） |
+| `V3__create_refresh_tokens.sql`（予定） | refresh_tokens | 認証 |
+| `V4__create_workouts.sql`（予定） | workouts・workout_exercises・workout_sets | 記録 |
+| `V5__create_workout_images.sql`（予定） | workout_images | 記録 |
+| `V6__create_follows.sql`（予定） | follows（承認の状態を含む） | タイムライン・フォロー |
+| `V7__create_likes.sql`（予定） | likes | ナイストレーニング |
+| `V8__create_comments.sql`（予定） | comments（返信を含む） | コメント |
+| （予定） | running_mets と初期データ | 消費カロリー（段階 5）。使う機能を作るときに作る |
+
+- 種目と `running_mets` の METs は、消費カロリー（段階 5）を作るときに原典の値と照らし合わせる。違っていたら、新しい番号のマイグレーションで `UPDATE` する（V2 は書き換えない）
 | `V9__create_body_records.sql` | body_records | 記録と集計（消費カロリー） |
 | `V10__create_goals.sql` | goals・goal_achievements・goal_cheers | 目標 |
 | `V11__create_notifications.sql` | notifications | 通知 |
