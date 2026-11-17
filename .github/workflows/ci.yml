@@ -1,0 +1,47 @@
+# PR と main への push のたびに、バックエンドのビルドとテストを実行する。
+# マージは、この CI が通ってから行う（CLAUDE.md のリポジトリ運用ルール）。
+# フロントエンド・E2E は、それを作る PR で足す（docs/test-plan.md 8.1）
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# 同じブランチに続けて push したら、古い方の実行は止める
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: バックエンド（整形の確認・テスト）
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # build は、整形の確認（Spotless）・jOOQ のコード生成・コンパイル・テストをまとめて行う。
+      # jOOQ のコード生成とテストは、Testcontainers が pg_bigm 入りの PostgreSQL（db/Dockerfile）を作って立ち上げる
+      # （GitHub のランナーには Docker が入っている。docker compose・.env は要らない）
+      - name: ./gradlew build
+        working-directory: backend
+        run: ./gradlew build
+
+      - name: テスト結果を保存（失敗したときの確認用）
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-test-reports
+          path: backend/build/reports/tests/
+          if-no-files-found: ignore
