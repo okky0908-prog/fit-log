@@ -562,6 +562,9 @@ Controller の基本のケース（前回と同じ）：
 
 - 基準を下回ったら CI を落とす（JaCoCo の `jacocoTestCoverageVerification`、Vitest の `coverage.thresholds`）。前回は途中から入れたが、今回は最初から基準を満たしながら作るので、最初から CI で守る
 - 層ごとに基準を変えるため、**層をパッケージ（フォルダ）で分ける**。JaCoCo も Vitest も、基準はクラス・ファイルの名前のパターンでしか分けられないため。段階 0 で次の形に決め、ほかの場所に置いたコードは基準の対象外にならないよう、「どの層にも入らないクラスがない」ことも確かめる
+  - バックエンドのクラスは `com.okimoto.fitlog.<機能>.<層>` に置く（層は `controller`・`service`・`calc`・`repository`）。層に入れないのは、アプリの入口（`FitLogApplication`）と jOOQ が生成したコードだけ。`LayerPackageTest` が確かめる
+  - 層を足すとき（例：Spring Security の設定を置く `config`）は、`LayerPackageTest` とこの表を同じ PR で直し、その層の基準を決める
+  - 分岐のないクラスは基準の対象にならない（JaCoCo は数のない項目を確かめない）。jOOQ が生成したコードは、カバレッジの数に入れない
 
   | 層 | バックエンド（JaCoCo の `element = CLASS` と名前のパターン） | フロント（Vitest の `coverage.thresholds` のパターン） |
   |---|---|---|

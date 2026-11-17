@@ -1,5 +1,6 @@
 plugins {
     java
+    jacoco
     id("org.springframework.boot") version "4.1.2"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.diffplug.spotless") version "8.11.0"
@@ -85,6 +86,60 @@ sourceSets.main {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // テストのあとに、カバレッジ（どの行・分岐をテストが通ったか）のレポートを作る
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+// テストのカバレッジ（docs/test-plan.md 6章）。Java 25 のクラスを読めるよう、0.8.14 以上を使う
+jacoco {
+    toolVersion = "0.8.15"
+}
+
+// jOOQ が生成したコードは、テストの対象にしない（カバレッジの数に入れない）
+val coverageClasses =
+    files(
+        sourceSets.main.map { main ->
+            main.output.classesDirs.asFileTree
+                .matching { exclude("com/okimoto/fitlog/jooq/**") }
+        },
+    )
+
+// レポートは build/reports/jacoco/test/ に作る（html：ブラウザで見る）
+tasks.jacocoTestReport {
+    classDirectories.setFrom(coverageClasses)
+    reports {
+        html.required = true
+        xml.required = true
+    }
+}
+
+// 層ごとの分岐網羅の基準（docs/test-plan.md 6章）。クラスごとに確かめ、1つでも下回ったら check（CI）を落とす。
+// 層はパッケージで分ける（LayerPackageTest が、どの層にも入らないクラスがないことを確かめる）。
+// 分岐のないクラスは、基準の対象にならない（JaCoCo は数のない項目を確かめない）
+tasks.jacocoTestCoverageVerification {
+    classDirectories.setFrom(coverageClasses)
+    violationRules {
+        rule {
+            element = "CLASS"
+            includes = listOf("com.okimoto.fitlog.*.calc.*")
+            limit {
+                counter = "BRANCH"
+                minimum = "1.00".toBigDecimal()
+            }
+        }
+        rule {
+            element = "CLASS"
+            includes = listOf("com.okimoto.fitlog.*.service.*")
+            limit {
+                counter = "BRANCH"
+                minimum = "0.90".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.check {
+    dependsOn(tasks.jacocoTestCoverageVerification)
 }
 
 spotless {
