@@ -1,0 +1,5 @@
+# 整形の対象は frontend/ の下だけ（リポジトリ直下の mockup/ は、ここから外れているので対象にならない）
+node_modules
+dist
+coverage
+package-lock.json

@@ -1,0 +1,19 @@
+.link {
+  position: relative;
+  display: inline-block;
+  text-decoration: none;
+}
+
+.count {
+  position: absolute;
+  top: -0.5em;
+  right: -0.9em;
+  min-width: 1.4em;
+  padding: 0 0.3em;
+  border-radius: 0.7em;
+  background: #c62828;
+  color: #fff;
+  font-size: 0.7rem;
+  line-height: 1.4em;
+  text-align: center;
+}

@@ -1,8 +1,8 @@
-# PR と main への push のたびに、バックエンドのビルドとテストを実行する。
+# PR と main への push のたびに、バックエンドとフロントエンドのビルドとテストを実行する。
 # マージは、この CI が通ってから行う（CLAUDE.md のリポジトリ運用ルール）。
-# フロントエンド・E2E は、それを作る PR で足す（docs/test-plan.md 8.1）
+# E2E は、それを作る PR で足す（docs/test-plan.md 8.1）
 #
-# main のブランチ保護で、ジョブ「バックエンド（整形の確認・テスト）」を必須のチェックにしている（CLAUDE.md の 5）。
+# main のブランチ保護で、2つのジョブ（バックエンド・フロントエンド）を必須のチェックにしている（CLAUDE.md の 5）。
 # - on に paths の絞り込みを入れない（文書だけの PR で CI が動かず、マージできなくなる）
 # - ジョブの name を変えるときは、ブランチ保護の必須のチェックも直す
 name: CI
@@ -58,4 +58,45 @@ jobs:
         with:
           name: backend-coverage
           path: backend/build/reports/jacoco/test/html/
+          if-no-files-found: ignore
+
+  frontend:
+    name: フロントエンド（整形の確認・Lint・テスト）
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      # 整形（Prettier）と Lint（oxlint）。どちらも frontend/ の下だけが対象（リポジトリ直下の mockup/ は対象にならない）
+      - name: 整形の確認
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      # 型チェック（tsc -b）と本番用のビルド
+      - name: 型チェックとビルド
+        run: npm run build
+
+      # テストとカバレッジ。src/lib の分岐網羅が、ファイルごとに 90% を下回るとここで落ちる（docs/test-plan.md 6章）
+      - name: テストとカバレッジ
+        run: npm run test:coverage
+
+      - name: カバレッジのレポートを保存
+        if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
           if-no-files-found: ignore

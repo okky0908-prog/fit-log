@@ -565,6 +565,8 @@ Controller の基本のケース（前回と同じ）：
   - バックエンドのクラスは `com.okimoto.fitlog.<機能>.<層>` に置く（層は `controller`・`service`・`calc`・`repository`）。層に入れないのは、アプリの入口（`FitLogApplication`）と jOOQ が生成したコードだけ。`LayerPackageTest` が確かめる
   - 層を足すとき（例：Spring Security の設定を置く `config`）は、`LayerPackageTest` とこの表を同じ PR で直し、その層の基準を決める
   - 分岐のないクラスは基準の対象にならない（JaCoCo は数のない項目を確かめない）。jOOQ が生成したコードは、カバレッジの数に入れない
+  - フロントのファイルは `src/lib`・`src/components`・`src/pages` のどれかに置く。層に入れないのは、アプリの入口（`src/main.tsx`）・テスト・テスト用の共通ファイル（`src/test`）・型だけのファイルだけ。`src/test/layers.test.ts` が確かめる。層を足すとき（例：画面の切り替えを置く `router`）は、そのテストとこの表を同じ PR で直す
+  - フロントの基準も、バックエンドと同じくファイルごとに確かめる（`perFile`）。全体の平均では、よくテストしたファイルが、テストの足りないファイルを隠してしまうため
 
   | 層 | バックエンド（JaCoCo の `element = CLASS` と名前のパターン） | フロント（Vitest の `coverage.thresholds` のパターン） |
   |---|---|---|
@@ -596,7 +598,7 @@ Controller の基本のケース（前回と同じ）：
 
 | 段階 | 内容 | E2E にするユースケースの例 |
 |---|---|---|
-| 0 | テストの土台を小さく作る（[8.1](#81-段階-0-は小さく始める)）：pg_bigm 入りのイメージと Testcontainers・Flyway・jOOQ のコード生成で、テーブルを1つ読む API のテストが1本通る。CI（`.github/workflows/ci.yml`）、JaCoCo・Vitest の coverage と基準、層のパッケージ。フロントエンドの雛形と ESLint・Prettier（`mockup/` を対象から外す） | — |
+| 0 | テストの土台を小さく作る（[8.1](#81-段階-0-は小さく始める)）：pg_bigm 入りのイメージと Testcontainers・Flyway・jOOQ のコード生成で、テーブルを1つ読む API のテストが1本通る。CI（`.github/workflows/ci.yml`）、JaCoCo・Vitest の coverage と基準、層のパッケージ。フロントエンドの雛形と Lint（oxlint）・整形（Prettier）（`mockup/` を対象から外す） | — |
 | 1 | 前回と同じ部分：認証・記録（種目・セット・画像）・ナイストレーニング・コメントと返信・フォロー・タイムライン、それらが作る通知（一覧・未読数・既読）。テストの土台の残り（LocalStack・Mailpit・SQL の数を数える部品・テスト用の組み立て役・E2E の起動（`bootTestRun`）と Playwright）は、使う機能を作るときに足す（[8.1](#81-段階-0-は小さく始める)） | 登録・ログイン、記録を作る（画像つき）、ナイストレーニング・コメント・返信で相手に通知が届く、フォローしてタイムラインに出る |
 | 2 | 記録と集計：自己ベスト・週間と月間・カレンダー・ランニング・種目ごとの推移・体重 | 記録して集計・自己ベストを見る、ランニングの記録、体重を記録する |
 | 3 | 目標：作成・達成の判定・公開・応援 | 目標を作り、記録で達成して通知が届く、他人の目標を応援する |
@@ -622,7 +624,7 @@ Controller の基本のケース（前回と同じ）：
 | 1 | バックエンドの雛形（Spring Boot・Gradle）、pg_bigm 入りのイメージ（Dockerfile）、Testcontainers の設定（PostgreSQL だけ）、Flyway の最初のマイグレーション、jOOQ のコード生成 | テーブルを1つ読む API の結合テストが、手元で1本通る（この API はテスト駆動で作る） |
 | 2 | CI | 1 のテストが CI で緑になる |
 | 3 | 層のパッケージ（[6章](#6-完了の基準)）と JaCoCo の基準 | 基準を下回ると CI が落ちる（わざと下げて確かめる）。コードが少ないうちに入れる |
-| 4 | フロントエンドの雛形（Vite・React・TypeScript）、Vitest と coverage の基準、ESLint・Prettier（`mockup/` を対象から外す）、CI への追加 | 画面の部品のテストが1本、CI で緑になる |
+| 4 | フロントエンドの雛形（Vite・React・TypeScript）、Vitest と coverage の基準、Lint（oxlint）・整形（Prettier）（`mockup/` を対象から外す）、CI への追加 | 画面の部品のテストが1本、CI で緑になる |
 
 段階 1 で足すもの（それぞれ、使う機能の最初の PR で、それだけを足す PR にする）：
 
