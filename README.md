@@ -90,9 +90,11 @@ ER図・画面遷移図は Mermaid で書いている。VSCode では拡張機�
 
 ```bash
 cd backend
-./gradlew build    # 整形の確認・コンパイル・テスト
+./gradlew build    # 整形の確認・コンパイル・テスト・カバレッジの基準の確認
 ./gradlew test     # テストだけ
 ```
+
+- カバレッジのレポートは `backend/build/reports/jacoco/test/html/index.html`。基準（計算の層 100%・Service の層 90%。[テスト計画書 6章](docs/test-plan.md#6-完了の基準)）を下回ると `build` が落ちる。アプリのクラスは `<機能>/<層>/` の下に置く（層の外に置くとテストが落ちる）
 
 - テストは、使い捨ての PostgreSQL（pg_bigm 入りの自作イメージ）のコンテナで動く。開発用の DB は使わないので、前回の SNS アプリのコンテナが動いていてもテストは動く（ポートが当たらない）
 - 初回は、PostgreSQL のイメージのビルド（pg_bigm をソースからビルドする）に数分かかる。2回目からは Docker のキャッシュで速く終わる
@@ -105,6 +107,8 @@ cd backend
 backend/                     Spring Boot（Java 25・Gradle）
   src/main/java/com/okimoto/fitlog/
     <機能>/controller/       API の入口（例：exercise/controller）
+    <機能>/service/          処理の流れ（分岐網羅 90% 以上）
+    <機能>/calc/             計算（分岐網羅 100%）
     <機能>/repository/       DB の読み書き（jOOQ）
   src/main/resources/db/migration/   Flyway のマイグレーション
   src/codegen/               jOOQ のコードを作るプログラム（アプリの jar には入らない）

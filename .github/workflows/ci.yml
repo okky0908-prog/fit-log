@@ -35,7 +35,8 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6
 
-      # build は、整形の確認（Spotless）・jOOQ のコード生成・コンパイル・テストをまとめて行う。
+      # build は、整形の確認（Spotless）・jOOQ のコード生成・コンパイル・テスト・カバレッジの基準の確認をまとめて行う。
+      # カバレッジが基準（計算 100%・Service 90%。docs/test-plan.md 6章）を下回ると、ここで落ちる。
       # jOOQ のコード生成とテストは、Testcontainers が pg_bigm 入りの PostgreSQL（db/Dockerfile）を作って立ち上げる
       # （GitHub のランナーには Docker が入っている。docker compose・.env は要らない）
       - name: ./gradlew build
@@ -48,4 +49,13 @@ jobs:
         with:
           name: backend-test-reports
           path: backend/build/reports/tests/
+          if-no-files-found: ignore
+
+      # カバレッジのレポート（JaCoCo の HTML）。基準を下回ったときに、どの分岐が通っていないかを見るため、失敗したときも保存する
+      - name: カバレッジのレポートを保存
+        if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-coverage
+          path: backend/build/reports/jacoco/test/html/
           if-no-files-found: ignore
