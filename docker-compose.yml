@@ -1,0 +1,26 @@
+# 手元の開発で使うコンテナ。テストは使わない（Testcontainers が使い捨てのコンテナを作る）。
+# 前回の SNS アプリとポートが同じなので、同時に起動しない（CLAUDE.md）。
+# LocalStack（記録の画像）・Mailpit（メール）は、使う機能を作るときに足す（docs/test-plan.md 8.1）
+name: fitlog
+
+services:
+  postgres:
+    # pg_bigm 入りの PostgreSQL 17（テストと同じ db/Dockerfile）
+    build: ./db
+    image: fitlog-postgres:local
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fitlog}
+      POSTGRES_USER: ${POSTGRES_USER:-fitlog}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fitlog}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fitlog} -d ${POSTGRES_DB:-fitlog}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

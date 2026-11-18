@@ -63,14 +63,14 @@ ER図・画面遷移図は Mermaid で書いている。VSCode では拡張機�
 
 ## 開発の状況
 
-本実装の段階 0（テストの土台）が済み、次は段階 1。実装は次の段階で進める（[要件定義書 11章](docs/requirements.md#11-開発の進め方)・[テスト計画書 8章](docs/test-plan.md#8-進め方)）。
+本実装の段階 1 を進めている（PR の順番は[テスト計画書 8.2](docs/test-plan.md#82-段階-1-の-pr-の順番)）。実装は次の段階で進める（[要件定義書 11章](docs/requirements.md#11-開発の進め方)・[テスト計画書 8章](docs/test-plan.md#8-進め方)）。
 
 | 段階 | 内容 | 状況 | 目安 | 実績 |
 |---|---|---|---|---|
 | — | 要件定義・設計のドキュメント | 済み | — | — |
 | — | モックアップで画面を確かめる | 済み | — | — |
 | 0 | テストの土台（CI・Testcontainers・カバレッジの基準） | 済み | 4日 | 3日 |
-| 1 | 認証・記録・ナイストレーニング・コメントと返信・フォロー・タイムライン、それらが作る通知 | これから | 15日 | |
+| 1 | 認証・記録・ナイストレーニング・コメントと返信・フォロー・タイムライン、それらが作る通知 | 進行中 | 15日 | |
 | 2 | 記録と集計（自己ベスト・週間と月間・カレンダー・ランニング・種目ごとの推移・体重） | これから | 10日 | |
 | 3 | 目標 | これから | 7日 | |
 | 4 | 鍵アカウント・検索・テンプレート | これから | 5日 | |
@@ -118,7 +118,25 @@ npm run build           # 型チェックとビルド
 
 - カバレッジのレポートは `frontend/coverage/index.html`。基準（`src/lib` の分岐網羅をファイルごとに 90%）を下回ると `test:coverage` が落ちる。ファイルは `src/lib`・`src/components`・`src/pages` のどれかに置く（外に置くとテストが落ちる）
 - CI は、このうち4つ（整形の確認・Lint・型チェックとビルド・テストとカバレッジ）とバックエンドの `build` を行う。どちらも通らないとマージできない
-- アプリの起動の手順（docker-compose で DB を立ち上げてバックエンドを動かす）は、段階 1 の最初の PR で書き足す
+
+## アプリの起動
+
+前回の SNS アプリとポートが同じなので、先に SNS アプリのコンテナとサーバーを止める（`cd ../SNSアプリ && docker compose stop`）。
+
+```bash
+cp .env.example .env                    # 初回だけ
+docker compose up -d --wait postgres    # DB（pg_bigm 入り。初回はイメージのビルドで数分かかる）
+
+# バックエンド（http://localhost:8080。起動のときに Flyway でテーブルを作る）
+cd backend && JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradlew bootRun
+
+# フロントエンド（別のターミナルで。http://localhost:5173）
+cd frontend && npm ci && npm run dev
+```
+
+- ポートは固定（PostgreSQL 5432・バックエンド 8080・フロントエンド 5173）。使われていたら、別のポートに逃がさず、使っているプロセスを止める（[CLAUDE.md](CLAUDE.md)）
+- 詳しい手順と、ポートが競合したときの対応は `.claude/skills/run/SKILL.md`
+- DB を作り直すとき：`docker compose down -v`（データがすべて消える）
 
 ## ディレクトリ構成
 
@@ -137,7 +155,8 @@ frontend/                    React・TypeScript・Vite
   src/components/            画面の部品（隣に 〇〇.test.tsx）
   src/pages/                 画面
   src/test/                  テストの共通の準備（setup.ts）・層のフォルダーのテスト
-db/Dockerfile                pg_bigm 入りの PostgreSQL 17
+db/Dockerfile                pg_bigm 入りの PostgreSQL 17（テストと docker-compose で共通）
+docker-compose.yml           手元の開発の DB
 docs/                        設計のドキュメント
 mockup/                      モックアップ（本実装では直さない参考資料）
 ```
