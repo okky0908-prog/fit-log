@@ -153,7 +153,8 @@
 | 言語 | TypeScript 7（前回は 7.0.2） | ○ | |
 | ビルド・開発サーバー | Vite 8（`@vitejs/plugin-react`。前回は 8.3.4・6.1.2） | ○ | 開発時は Vite のプロキシで `/api` を Spring Boot に中継する |
 | 実行環境 | Node.js 24系（`.nvmrc` で固定） | ○ | |
-| Lint | oxlint（前回は 1.87.0） | ○ | |
+| Lint | oxlint（前回は 1.87.0） | ○ | 警告も CI で落とす（`--deny-warnings`） |
+| コード整形 | Prettier | 新規 | 前回のフロントは整形の道具がなかった。バックエンドの Spotless と同じく、CI で整形の崩れを確かめる。oxlint と同じ Oxc の整形の道具（oxfmt）もあるが、まだ新しいため、広く使われている Prettier にする |
 | ルーティング | React Router（前回は 8.4.0） | ○ | |
 | サーバーのデータの管理 | TanStack Query（未定） | 新規 | 3.5 |
 | フォーム | React Hook Form・`@hookform/resolvers`（未定） | 新規 | 3.5 |

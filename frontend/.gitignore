@@ -1,0 +1,9 @@
+node_modules
+dist
+*.local
+*.log
+
+# テストのカバレッジのレポート（npm run test:coverage）
+coverage
+
+.DS_Store

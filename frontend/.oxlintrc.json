@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc", "jsx-a11y", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "ignorePatterns": ["dist", "coverage"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    // Vite の自動 JSX ランタイムを使うので、React を import しなくてよい
+    "react/react-in-jsx-scope": "off"
+  },
+  "overrides": [
+    {
+      // テスト用の共通ファイルは、部品と関数を一緒に書き出してよい（画面の自動更新 Fast Refresh の対象ではないため）
+      "files": ["src/test/**"],
+      "rules": {
+        "react/only-export-components": "off"
+      }
+    }
+  ]
+}

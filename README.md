@@ -63,13 +63,13 @@ ER図・画面遷移図は Mermaid で書いている。VSCode では拡張機�
 
 ## 開発の状況
 
-本実装の段階 0（テストの土台）を進めている。実装は次の段階で進める（[要件定義書 11章](docs/requirements.md#11-開発の進め方)・[テスト計画書 8章](docs/test-plan.md#8-進め方)）。
+本実装の段階 0（テストの土台）が済み、次は段階 1。実装は次の段階で進める（[要件定義書 11章](docs/requirements.md#11-開発の進め方)・[テスト計画書 8章](docs/test-plan.md#8-進め方)）。
 
 | 段階 | 内容 | 状況 | 目安 | 実績 |
 |---|---|---|---|---|
 | — | 要件定義・設計のドキュメント | 済み | — | — |
 | — | モックアップで画面を確かめる | 済み | — | — |
-| 0 | テストの土台（CI・Testcontainers・カバレッジの基準） | 進行中 | 4日 | |
+| 0 | テストの土台（CI・Testcontainers・カバレッジの基準） | 済み | 4日 | 3日 |
 | 1 | 認証・記録・ナイストレーニング・コメントと返信・フォロー・タイムライン、それらが作る通知 | これから | 15日 | |
 | 2 | 記録と集計（自己ベスト・週間と月間・カレンダー・ランニング・種目ごとの推移・体重） | これから | 10日 | |
 | 3 | 目標 | これから | 7日 | |
@@ -86,12 +86,15 @@ ER図・画面遷移図は Mermaid で書いている。VSCode では拡張機�
 
 ## セットアップとテスト
 
-必要なもの：Java 25（Homebrew の `openjdk@25`）、Docker（Docker Desktop）。
+必要なもの：Java 25（Homebrew の `openjdk@25`）、Docker（Docker Desktop）、Node.js 24（`frontend/.nvmrc`）。
+
+### バックエンド
 
 ```bash
 cd backend
 ./gradlew build    # 整形の確認・コンパイル・テスト・カバレッジの基準の確認
 ./gradlew test     # テストだけ
+./gradlew spotlessApply   # 整形する
 ```
 
 - カバレッジのレポートは `backend/build/reports/jacoco/test/html/index.html`。基準（計算の層 100%・Service の層 90%。[テスト計画書 6章](docs/test-plan.md#6-完了の基準)）を下回ると `build` が落ちる。アプリのクラスは `<機能>/<層>/` の下に置く（層の外に置くとテストが落ちる）
@@ -99,7 +102,23 @@ cd backend
 - テストは、使い捨ての PostgreSQL（pg_bigm 入りの自作イメージ）のコンテナで動く。開発用の DB は使わないので、前回の SNS アプリのコンテナが動いていてもテストは動く（ポートが当たらない）
 - 初回は、PostgreSQL のイメージのビルド（pg_bigm をソースからビルドする）に数分かかる。2回目からは Docker のキャッシュで速く終わる
 - jOOQ のコード（テーブルの形の Java のクラス）は、ビルドの中で `generateJooq` タスクが作る（`backend/build/generated-sources/jooq`）。マイグレーションを変えたときだけ、作り直す
-- アプリの起動の手順（docker-compose・フロントエンド）は、段階 0 のあとの PR で書き足す
+
+### フロントエンド
+
+```bash
+cd frontend
+npm ci
+npm run dev             # 開発サーバー（http://localhost:5173。/api はバックエンドの 8080 に中継する）
+npm test                # テスト（Vitest）
+npm run test:coverage   # テストとカバレッジの基準の確認
+npm run lint            # Lint（oxlint。警告も失敗にする）
+npm run format          # 整形する（Prettier。npm run format:check は確認だけ）
+npm run build           # 型チェックとビルド
+```
+
+- カバレッジのレポートは `frontend/coverage/index.html`。基準（`src/lib` の分岐網羅をファイルごとに 90%）を下回ると `test:coverage` が落ちる。ファイルは `src/lib`・`src/components`・`src/pages` のどれかに置く（外に置くとテストが落ちる）
+- CI は、このうち4つ（整形の確認・Lint・型チェックとビルド・テストとカバレッジ）とバックエンドの `build` を行う。どちらも通らないとマージできない
+- アプリの起動の手順（docker-compose で DB を立ち上げてバックエンドを動かす）は、段階 1 の最初の PR で書き足す
 
 ## ディレクトリ構成
 
@@ -113,6 +132,11 @@ backend/                     Spring Boot（Java 25・Gradle）
   src/main/resources/db/migration/   Flyway のマイグレーション
   src/codegen/               jOOQ のコードを作るプログラム（アプリの jar には入らない）
   src/test/                  テスト（support/TestcontainersConfiguration：テスト用のコンテナ）
+frontend/                    React・TypeScript・Vite
+  src/lib/                   関数・通信（分岐網羅 90% 以上）
+  src/components/            画面の部品（隣に 〇〇.test.tsx）
+  src/pages/                 画面
+  src/test/                  テストの共通の準備（setup.ts）・層のフォルダーのテスト
 db/Dockerfile                pg_bigm 入りの PostgreSQL 17
 docs/                        設計のドキュメント
 mockup/                      モックアップ（本実装では直さない参考資料）
