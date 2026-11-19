@@ -23,11 +23,19 @@ repositories {
 // jOOQ のコードを作るプログラム（src/codegen）。アプリとは別のソースセットにして、アプリの jar に入れない
 val codegen by sourceSets.creating
 
+val jjwtVersion = "0.13.0"
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-jooq")
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.flywaydb:flyway-database-postgresql")
+    // JWT。JSON の処理は Gson を使う（jjwt-jackson は Jackson 2 に依存し、Spring Boot 4 の Jackson 3 と混ざるため。docs/tech-stack.md）
+    implementation("io.jsonwebtoken:jjwt-api:$jjwtVersion")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:$jjwtVersion")
+    runtimeOnly("io.jsonwebtoken:jjwt-gson:$jjwtVersion")
     runtimeOnly("org.postgresql:postgresql")
 
     // jOOQ のコード生成（版は、アプリが使う jOOQ と同じく Spring Boot が管理する）
@@ -40,6 +48,8 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-jooq-test")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-security-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
     // テストは、使い捨ての PostgreSQL（pg_bigm 入りの自作イメージ）のコンテナで動かす（開発用の DB に書き込まない）
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-postgresql")
@@ -86,6 +96,9 @@ sourceSets.main {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // JVM（と、その設定を引き継ぐ DB の接続）のタイムゾーンを UTC にする。既定のタイムゾーンに頼った書き漏れがあると、
+    // 日本時間の0時〜9時の境界のテストが落ちて見つかる（docs/test-plan.md 4.4）
+    jvmArgs("-Duser.timezone=UTC")
     // テストのあとに、カバレッジ（どの行・分岐をテストが通ったか）のレポートを作る
     finalizedBy(tasks.jacocoTestReport)
 }

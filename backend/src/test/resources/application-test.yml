@@ -5,3 +5,8 @@
 spring:
   datasource:
     url: jdbc:postgresql://testcontainers-not-imported.invalid:5432/fitlog
+
+app:
+  jwt:
+    # テスト用の署名の鍵（32バイト以上）。本物の鍵は .env か環境変数の JWT_SECRET で渡す
+    secret: test-secret-for-jwt-signing-0123456789abcdef

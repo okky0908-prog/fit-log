@@ -28,7 +28,7 @@ docker ps --format '{{.Names}}\t{{.Ports}}'          # sns-app-* が動いてい
 ## 起動のコマンド
 
 ```bash
-# 0. 初回だけ：.env を用意する
+# 0. 初回だけ：.env を用意し、JWT_SECRET に openssl rand -base64 48 の結果を入れる（空だとバックエンドが起動しない）
 cp .env.example .env
 
 # 1. DB（初回は db/Dockerfile のビルドで数分かかる）
@@ -71,7 +71,15 @@ cd frontend && npm run dev
 ## 起動の確認
 
 - DB：`docker compose ps`（`postgres` が `healthy`）
-- バックエンド：`curl -sf http://localhost:8080/api/exercises | head -c 200`
 - フロントエンド：`curl -sf http://localhost:5173` か、ブラウザで開く
-- フロントエンドの中継：`curl -sf http://localhost:5173/api/exercises | head -c 200`
-- ログインが必要になったら（段階 1 の認証の PR のあと）、確認に使う API とアカウントの作り方をここに書き足す
+- バックエンド（フロントエンドの中継を通す）：ログイン以外の API はログインが必要。確認用のアカウントを作り（2回目からはログイン）、返ったトークンで呼ぶ
+
+  ```bash
+  # 新規登録（2回目からは 409 になるので、/api/auth/login に email と password を送る）
+  curl -s -X POST http://localhost:5173/api/auth/signup -H 'Content-Type: application/json' \
+    -d '{"username":"demo_user","displayName":"デモ","email":"demo@example.com","password":"password123"}'
+  TOKEN=$(curl -s -X POST http://localhost:5173/api/auth/login -H 'Content-Type: application/json' \
+    -d '{"email":"demo@example.com","password":"password123"}' | jq -r .accessToken)
+  curl -s http://localhost:5173/api/auth/me -H "Authorization: Bearer $TOKEN"
+  curl -s http://localhost:5173/api/exercises -H "Authorization: Bearer $TOKEN" | head -c 200
+  ```

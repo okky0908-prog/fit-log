@@ -124,7 +124,7 @@ npm run build           # 型チェックとビルド
 前回の SNS アプリとポートが同じなので、先に SNS アプリのコンテナとサーバーを止める（`cd ../SNSアプリ && docker compose stop`）。
 
 ```bash
-cp .env.example .env                    # 初回だけ
+cp .env.example .env                    # 初回だけ。JWT_SECRET に openssl rand -base64 48 の結果を入れる
 docker compose up -d --wait postgres    # DB（pg_bigm 入り。初回はイメージのビルドで数分かかる）
 
 # バックエンド（http://localhost:8080。起動のときに Flyway でテーブルを作る）
@@ -147,6 +147,8 @@ backend/                     Spring Boot（Java 25・Gradle）
     <機能>/service/          処理の流れ（分岐網羅 90% 以上）
     <機能>/calc/             計算（分岐網羅 100%）
     <機能>/repository/       DB の読み書き（jOOQ）
+    <機能>/config/           Spring の設定・フィルター（例：auth/config の Spring Security）
+    common/                  機能をまたいで使う部品（エラーの形・入力チェック・時計）
   src/main/resources/db/migration/   Flyway のマイグレーション
   src/codegen/               jOOQ のコードを作るプログラム（アプリの jar には入らない）
   src/test/                  テスト（support/TestcontainersConfiguration：テスト用のコンテナ）

@@ -17,14 +17,17 @@ import org.junit.jupiter.api.Test;
  * <p>カバレッジの基準（JaCoCo）は、クラスの名前のパターン（{@code *.calc.*}・{@code *.service.*}）で層ごとに分けている。
  * 層の外に置いたクラスは基準の対象から漏れるので、ここで止める。
  *
- * <p>層を足すとき（例：Spring Security の設定を置く {@code config}）は、この正規表現とテスト計画書 6章の表を同じ PR で直す。
+ * <p>層を足すときは、この正規表現とテスト計画書 6章の表を同じ PR で直す。
  */
 class LayerPackageTest {
 
-  /** {@code com.okimoto.fitlog.<機能>.<層>.<クラス>}（内部クラスの {@code $…} を含む） */
+  /**
+   * {@code com.okimoto.fitlog.<機能>.<層>.<クラス>}（内部クラスの {@code $…} を含む）。{@code config} は Spring
+   * の設定・フィルター・設定値（分岐の基準はなく、結合テストで確かめる）。 機能をまたいで使う部品は、機能の名前を {@code common} にする
+   */
   private static final Pattern LAYERED =
       Pattern.compile(
-          "com\\.okimoto\\.fitlog\\.[a-z]+\\.(controller|service|calc|repository)\\.[^.]+");
+          "com\\.okimoto\\.fitlog\\.[a-z]+\\.(controller|service|calc|repository|config)\\.[^.]+");
 
   /** 層に入れないクラス：アプリの入口と、jOOQ が生成したコード（テストの対象にしない） */
   private static final Pattern EXCLUDED =
@@ -37,7 +40,7 @@ class LayerPackageTest {
         .as("アプリのクラス")
         .isNotEmpty()
         .filteredOn(name -> !EXCLUDED.matcher(name).matches())
-        .as("層（<機能>.controller / service / calc / repository）の外に置いたクラス")
+        .as("層（<機能>.controller / service / calc / repository / config）の外に置いたクラス")
         .allMatch(name -> LAYERED.matcher(name).matches());
   }
 
