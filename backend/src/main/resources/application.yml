@@ -16,6 +16,13 @@ spring:
       # 仮想スレッドを使う（docs/tech-stack.md 3.1）
       enabled: true
 
+app:
+  jwt:
+    # 署名の鍵（32バイト以上）。.env か環境変数で渡す（.env.example）。ないと起動しない
+    secret: ${JWT_SECRET:}
+    # アクセストークンの有効期限（docs/api.md「共通のルール」）
+    expiration: 15m
+
 logging:
   level:
     # jOOQ は DB の接続を受け取るたびに DB の版を調べ、無償版の対象（PostgreSQL の最新版）より古いと警告を出す。

@@ -562,8 +562,9 @@ Controller の基本のケース（前回と同じ）：
 
 - 基準を下回ったら CI を落とす（JaCoCo の `jacocoTestCoverageVerification`、Vitest の `coverage.thresholds`）。前回は途中から入れたが、今回は最初から基準を満たしながら作るので、最初から CI で守る
 - 層ごとに基準を変えるため、**層をパッケージ（フォルダ）で分ける**。JaCoCo も Vitest も、基準はクラス・ファイルの名前のパターンでしか分けられないため。段階 0 で次の形に決め、ほかの場所に置いたコードは基準の対象外にならないよう、「どの層にも入らないクラスがない」ことも確かめる
-  - バックエンドのクラスは `com.okimoto.fitlog.<機能>.<層>` に置く（層は `controller`・`service`・`calc`・`repository`）。層に入れないのは、アプリの入口（`FitLogApplication`）と jOOQ が生成したコードだけ。`LayerPackageTest` が確かめる
-  - 層を足すとき（例：Spring Security の設定を置く `config`）は、`LayerPackageTest` とこの表を同じ PR で直し、その層の基準を決める
+  - バックエンドのクラスは `com.okimoto.fitlog.<機能>.<層>` に置く（層は `controller`・`service`・`calc`・`repository`・`config`）。層に入れないのは、アプリの入口（`FitLogApplication`）と jOOQ が生成したコードだけ。`LayerPackageTest` が確かめる
+  - 機能をまたいで使う部品（エラーの形・入力チェックの部品・時計）は、機能の名前を `common` にする（例：`common.controller.ErrorCode`）
+  - 層を足すときは、`LayerPackageTest` とこの表を同じ PR で直し、その層の基準を決める
   - 分岐のないクラスは基準の対象にならない（JaCoCo は数のない項目を確かめない）。jOOQ が生成したコードは、カバレッジの数に入れない
   - フロントのファイルは `src/lib`・`src/components`・`src/pages` のどれかに置く。層に入れないのは、アプリの入口（`src/main.tsx`）・テスト・テスト用の共通ファイル（`src/test`）・型だけのファイルだけ。`src/test/layers.test.ts` が確かめる。層を足すとき（例：画面の切り替えを置く `router`）は、そのテストとこの表を同じ PR で直す
   - フロントの基準も、バックエンドと同じくファイルごとに確かめる（`perFile`）。全体の平均では、よくテストしたファイルが、テストの足りないファイルを隠してしまうため
@@ -573,6 +574,7 @@ Controller の基本のケース（前回と同じ）：
   | 計算 | `…*.calc.*` を分岐 100% | `src/lib/**`（関数・通信）を分岐 90% |
   | Service | `…*.service.*` を分岐 90% | `src/components/**`・`src/pages/**` を分岐 80%（目安。CI では落とさない） |
   | Controller・Repository | 分岐の数値は基準にしない（上の表の基本のケースとデシジョンテーブルの列で守る） | — |
+  | 設定（`config`：Spring Security の設定・フィルター・設定値） | 分岐の数値は基準にしない（Controller のテストと結合テストで、ログインの要否と 401・403 の形を確かめる） | — |
 
 ## 7. テストの書き方の決まり
 
@@ -645,11 +647,11 @@ Controller の基本のケース（前回と同じ）：
 | 順 | PR で足すもの | 主な API・画面 |
 |---|---|---|
 | 1 | アプリの起動の手順（docker-compose・`.env.example`・起動のスキル） | — |
-| 2 | 新規登録・ログイン・ログイン中のユーザー（Spring Security・JWT） | A-01〜A-03 |
-| 3 | アクセストークンの再発行・ログアウト（リフレッシュトークンの Cookie） | A-04・A-05 |
+| 2 | 新規登録・ログイン・ログイン中のユーザー（Spring Security・JWT）、共通のエラーの形。Spring Security を入れると全 API がログイン必須になるので、種目の一覧（A-30）のログイン必須もここで入れる | A-01〜A-03 |
+| 3 | アクセストークンの再発行・ログアウト（リフレッシュトークンの Cookie）、ログインの試行回数の制限・パスワードの照合の同時実行の制限（[4.8](#48-アカウントの安全)） | A-04・A-05 |
 | 4 | 確認メール（Mailpit・メールの送信・1時間に5通までの上限・確認用のトークン） | A-01 のメールの送信・A-06・A-07 |
 | 5 | 画面の土台と認証の画面（React Router・TanStack Query・`api/client.ts` の再発行とやり直し・ログインが必要な画面の守り）、メールアドレスの確認の画面と、未確認のときの案内 | S-01・S-02・S-05 |
-| 6 | 種目（ログインを必須にする・検索の条件・自分専用の種目） | A-30〜A-34 |
+| 6 | 種目（検索の条件・自分専用の種目） | A-30〜A-34 |
 | 7 | 記録の作成・詳細・編集・削除（画像なし）。テスト用の組み立て役 | A-20〜A-23 |
 | 8 | 記録の画像（LocalStack・署名付き URL） | A-20・A-22 |
 | 9 | 記録の作成・編集と詳細の画面（React Hook Form・Zod） | S-13・S-12 |

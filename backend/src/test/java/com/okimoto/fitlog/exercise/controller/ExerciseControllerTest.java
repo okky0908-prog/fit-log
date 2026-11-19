@@ -4,12 +4,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.okimoto.fitlog.auth.service.JwtService;
 import com.okimoto.fitlog.support.TestcontainersConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -25,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class ExerciseControllerTest {
 
   @Autowired private MockMvc mockMvc;
+  @Autowired private JwtService jwtService;
 
   /**
    * 最初から用意された58種目を、部位の順（胸・背中・脚・肩・腕・腹・全身・有酸素）→ 部位の中の順で返す。
@@ -35,7 +38,9 @@ class ExerciseControllerTest {
   @Test
   void 最初から用意された種目を部位の順に返す() throws Exception {
     mockMvc
-        .perform(get("/api/exercises"))
+        .perform(
+            get("/api/exercises")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.issue(1L)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(58))
         // 最初：胸の1番目。重量 × 回数
@@ -59,5 +64,16 @@ class ExerciseControllerTest {
         // 最後：有酸素の11番目
         .andExpect(jsonPath("$[57].name").value("縄跳び"))
         .andExpect(jsonPath("$[57].isRunning").value(false));
+  }
+
+  @Test
+  void ログインしていなければ401を返す() throws Exception {
+    mockMvc
+        .perform(get("/api/exercises"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.status").value(401))
+        .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"))
+        .andExpect(jsonPath("$.message").value("ログインが必要です"))
+        .andExpect(jsonPath("$.errors").isEmpty());
   }
 }
