@@ -1,0 +1,69 @@
+// API のデータの形（docs/api.md）。段階 1 で使う認証のものだけ。
+// openapi.yaml からの型の自動生成（docs/api.md の冒頭）は、API が増えたところで入れる
+
+/** エラーの code（docs/api.md「エラー」。画面で見分けるものだけ。ほかの値も届くので string も受ける） */
+export type ApiErrorCode =
+  | 'VALIDATION_FAILED'
+  | 'MALFORMED_REQUEST'
+  | 'INVALID_TOKEN'
+  | 'UNAUTHENTICATED'
+  | 'INVALID_CREDENTIALS'
+  | 'SESSION_EXPIRED'
+  | 'ALREADY_REGISTERED'
+  | 'ALREADY_VERIFIED'
+  | 'TOO_MANY_LOGIN_ATTEMPTS'
+  | 'TOO_MANY_EMAILS'
+  | 'SERVICE_UNAVAILABLE'
+  | 'SERVER_BUSY'
+  | (string & {})
+
+/** 項目ごとのエラー（入力チェック・登録済み） */
+export interface FieldErrorBody {
+  field: string
+  message: string
+}
+
+/** エラーのレスポンス（docs/api.md「エラー」） */
+export interface ApiErrorBody {
+  status: number
+  code: ApiErrorCode
+  message: string
+  errors: FieldErrorBody[]
+}
+
+/** ログイン中のユーザー（A-03） */
+export interface Me {
+  username: string
+  displayName: string
+  iconUrl: string | null
+  bio: string | null
+  email: string
+  emailVerified: boolean
+  isPrivate: boolean
+  weightUnit: 'kg' | 'lb'
+  distanceUnit: 'km' | 'mi'
+}
+
+/** 新規登録・ログイン・再発行のレスポンス（A-01・A-02・A-04） */
+export interface AuthResponse {
+  accessToken: string
+  user: Me
+}
+
+export interface SignupInput {
+  username: string
+  displayName: string
+  email: string
+  password: string
+}
+
+export interface LoginInput {
+  email: string
+  password: string
+}
+
+/** A-06 のレスポンス。email_changed（メールアドレスの変更）は段階 5 で使う */
+export interface VerifyEmailResult {
+  result: 'verified' | 'email_changed'
+  email: string
+}

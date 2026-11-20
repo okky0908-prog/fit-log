@@ -155,8 +155,8 @@
 | 実行環境 | Node.js 24系（`.nvmrc` で固定） | ○ | |
 | Lint | oxlint（前回は 1.87.0） | ○ | 警告も CI で落とす（`--deny-warnings`） |
 | コード整形 | Prettier | 新規 | 前回のフロントは整形の道具がなかった。バックエンドの Spotless と同じく、CI で整形の崩れを確かめる。oxlint と同じ Oxc の整形の道具（oxfmt）もあるが、まだ新しいため、広く使われている Prettier にする |
-| ルーティング | React Router（前回は 8.4.0） | ○ | |
-| サーバーのデータの管理 | TanStack Query（未定） | 新規 | 3.5 |
+| ルーティング | React Router 8.5.1（前回は 8.4.0） | ○ | |
+| サーバーのデータの管理 | TanStack Query 5.107.1 | 新規 | 3.5 |
 | フォーム | React Hook Form・`@hookform/resolvers`（未定） | 新規 | 3.5 |
 | 入力の検証 | Zod（未定） | 新規 | 3.5 |
 | グラフ | Recharts（未定） | 新規 | 3.5。グラフの画面だけ後から読み込む |
