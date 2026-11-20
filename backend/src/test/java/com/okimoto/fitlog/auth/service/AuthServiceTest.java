@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -48,6 +49,7 @@ class AuthServiceTest {
           clock);
   private final RefreshTokenService refreshTokenService = mock(RefreshTokenService.class);
   private final LoginAttemptLimiter loginAttemptLimiter = mock(LoginAttemptLimiter.class);
+  private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
   private AuthService authService;
 
   @BeforeEach
@@ -62,6 +64,7 @@ class AuthServiceTest {
             loginAttemptLimiter,
             new PasswordHashingGate(new PasswordHashingProperties(1, Duration.ofSeconds(1))),
             TransactionOperations.withoutTransaction(),
+            eventPublisher,
             clock);
   }
 
@@ -84,6 +87,27 @@ class AuthServiceTest {
     assertThat(jwtService.parseUserId(result.accessToken())).contains(1L);
     assertThat(result.refreshToken()).isEqualTo("refresh-token");
     assertThat(result.user().getId()).isEqualTo(1L);
+  }
+
+  /** 確認メールは、このイベントを受けて保存の確定後に別のスレッドで送る（SignupVerificationMailListener） */
+  @Test
+  void 新規登録したら_登録したユーザーとそろえたメールアドレスのイベントを出す() {
+    given(userRepository.insert(any())).willAnswer(invocation -> saved(invocation.getArgument(0)));
+
+    authService.signup("yamada", "山田太郎", " Yamada@Example.com", "password123");
+
+    verify(eventPublisher).publishEvent(new UserRegisteredEvent(1L, "yamada@example.com"));
+  }
+
+  @Test
+  void 登録できなかったら_イベントを出さない() {
+    given(userRepository.insert(any()))
+        .willThrow(new DuplicateKeyException("uq_users_username_lower"));
+
+    assertThatThrownBy(
+        () -> authService.signup("yamada", "山田太郎", "yamada@example.com", "password123"));
+
+    verifyNoInteractions(eventPublisher);
   }
 
   @ParameterizedTest

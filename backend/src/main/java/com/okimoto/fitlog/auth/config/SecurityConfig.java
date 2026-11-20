@@ -33,13 +33,21 @@ import tools.jackson.databind.ObjectMapper;
   JwtProperties.class,
   RefreshTokenProperties.class,
   LoginAttemptProperties.class,
-  PasswordHashingProperties.class
+  PasswordHashingProperties.class,
+  EmailVerificationProperties.class
 })
 public class SecurityConfig {
 
-  /** ログインなしで呼べる API（すべて POST）。再発行・ログアウトは、アクセストークンの代わりにリフレッシュトークンの Cookie を使う */
+  /**
+   * ログインなしで呼べる API（すべて POST）。再発行・ログアウトは、アクセストークンの代わりにリフレッシュトークンの Cookie を使う。
+   * メールアドレスの確認は、別の端末でメールを開くことがあるため
+   */
   static final String[] PUBLIC_POST_PATHS = {
-    "/api/auth/signup", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout"
+    "/api/auth/signup",
+    "/api/auth/login",
+    "/api/auth/refresh",
+    "/api/auth/logout",
+    "/api/auth/email-verification"
   };
 
   @Bean

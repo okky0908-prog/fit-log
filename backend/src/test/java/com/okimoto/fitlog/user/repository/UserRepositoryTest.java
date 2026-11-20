@@ -84,6 +84,29 @@ class UserRepositoryTest {
         .hasMessageContaining("users_email_key");
   }
 
+  @Test
+  void メールアドレスを確認済みにする_ほかのユーザーは変わらない() {
+    long id = userRepository.insert(newUser("yamada", "yamada@example.com")).getId();
+    long otherId = userRepository.insert(newUser("sato", "sato@example.com")).getId();
+
+    userRepository.markEmailVerified(id, NOW.plusHours(1));
+
+    assertThat(userRepository.findById(id).orElseThrow().getEmailVerifiedAt())
+        .isEqualTo(NOW.plusHours(1));
+    assertThat(userRepository.findById(otherId).orElseThrow().getEmailVerifiedAt()).isNull();
+  }
+
+  @Test
+  void 確認済みの日時は_もう一度確認しても最初の日時のまま() {
+    long id = userRepository.insert(newUser("yamada", "yamada@example.com")).getId();
+
+    userRepository.markEmailVerified(id, NOW.plusHours(1));
+    userRepository.markEmailVerified(id, NOW.plusHours(2));
+
+    assertThat(userRepository.findById(id).orElseThrow().getEmailVerifiedAt())
+        .isEqualTo(NOW.plusHours(1));
+  }
+
   private static NewUser newUser(String username, String email) {
     return new NewUser(username, "表示名", email, "hash", NOW);
   }

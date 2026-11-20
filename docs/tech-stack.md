@@ -211,7 +211,7 @@
 | コンテナ | Docker Compose | ○ | |
 | DB | `postgres:17` に pg_bigm を入れた自作イメージ（`db/Dockerfile`） | 変更 | 3.2 |
 | S3 の代わり | LocalStack 4.14.0（S3 だけ起動） | ○ | 前回と同じく、認証トークンなしで動く最後の版に固定する |
-| メールの確認 | Mailpit（未定） | 新規 | 送ったメールを画面で確かめる。3.8 |
+| メールの確認 | Mailpit v1.33.1（`axllent/mailpit`。docker-compose とテストの Testcontainers で同じ版） | 新規 | 送ったメールを画面で確かめる。3.8 |
 | 負荷テスト | k6（前回は 2.3.0） | ○ | |
 
 ## 8. インフラ（AWS）

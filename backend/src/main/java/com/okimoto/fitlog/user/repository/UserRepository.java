@@ -4,6 +4,7 @@ import static com.okimoto.fitlog.jooq.Tables.USERS;
 import static org.jooq.impl.DSL.lower;
 
 import com.okimoto.fitlog.jooq.tables.records.UsersRecord;
+import java.time.OffsetDateTime;
 import java.util.Locale;
 import java.util.Optional;
 import org.jooq.DSLContext;
@@ -48,5 +49,14 @@ public class UserRepository {
 
   public Optional<UsersRecord> findById(long id) {
     return dsl.selectFrom(USERS).where(USERS.ID.eq(id)).fetchOptional();
+  }
+
+  /** メールアドレスを確認済みにする。すでに確認済みなら、最初に確認した日時のままにする */
+  public void markEmailVerified(long id, OffsetDateTime now) {
+    dsl.update(USERS)
+        .set(USERS.EMAIL_VERIFIED_AT, now)
+        .where(USERS.ID.eq(id))
+        .and(USERS.EMAIL_VERIFIED_AT.isNull())
+        .execute();
   }
 }
