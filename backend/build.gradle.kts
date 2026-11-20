@@ -31,6 +31,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-jooq")
     implementation("org.springframework.boot:spring-boot-starter-flyway")
+    // メールの送信（手元の開発とテストは SMTP で Mailpit に送る。docs/tech-stack.md 3.8）
+    implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation("org.flywaydb:flyway-database-postgresql")
     // JWT。JSON の処理は Gson を使う（jjwt-jackson は Jackson 2 に依存し、Spring Boot 4 の Jackson 3 と混ざるため。docs/tech-stack.md）
     implementation("io.jsonwebtoken:jjwt-api:$jjwtVersion")
@@ -50,6 +52,8 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
+    // 保存の確定後に別のスレッドで動く処理（確認メールの送信など）が終わるのを待つ（Spring Boot が版を管理する）
+    testImplementation("org.awaitility:awaitility")
     // テストは、使い捨ての PostgreSQL（pg_bigm 入りの自作イメージ）のコンテナで動かす（開発用の DB に書き込まない）
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-postgresql")

@@ -16,6 +16,8 @@ public enum ErrorCode {
   VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "入力内容に誤りがあります"),
   /** JSON が壊れているなど、リクエストを読めない */
   MALFORMED_REQUEST(HttpStatus.BAD_REQUEST, "リクエストの形式が正しくありません"),
+  /** 確認用のリンクのトークンが、期限切れ（期限ちょうども含む）・使用済み・不正 */
+  INVALID_TOKEN(HttpStatus.BAD_REQUEST, "このリンクは使えません"),
 
   // ===== 401 =====
   /** アクセストークンがない・無効・期限切れ。画面は A-04 で再発行して1回だけやり直す */
@@ -37,6 +39,8 @@ public enum ErrorCode {
   // ===== 409 / 413 / 415 =====
   /** ユーザー名・メールアドレスが登録済み。どの項目かは errors に入る */
   ALREADY_REGISTERED(HttpStatus.CONFLICT, "すでに登録されています"),
+  /** 確認済みのメールアドレスに、確認メールを再送しようとした */
+  ALREADY_VERIFIED(HttpStatus.CONFLICT, "メールアドレスの確認はすでに済んでいます"),
   PAYLOAD_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "送信するデータが大きすぎます"),
   UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "リクエストの形式（Content-Type）に対応していません"),
 
@@ -44,6 +48,8 @@ public enum ErrorCode {
   /** 同じメールアドレスでログインの失敗が続いたので、しばらくログインを受け付けない（総当たりの対策） */
   TOO_MANY_LOGIN_ATTEMPTS(
       HttpStatus.TOO_MANY_REQUESTS, "ログインの失敗が続いたため、しばらくログインできません。15分ほど待ってからもう一度お試しください"),
+  /** 同じアドレスへのメールが1時間で5通を超える */
+  TOO_MANY_EMAILS(HttpStatus.TOO_MANY_REQUESTS, "メールの送信が続いたため、しばらく送れません。1時間ほど待ってからもう一度お試しください"),
 
   // ===== 500 / 503 =====
   /** 想定していないエラー。内部の情報は利用者に出さず、ログにだけ残す */

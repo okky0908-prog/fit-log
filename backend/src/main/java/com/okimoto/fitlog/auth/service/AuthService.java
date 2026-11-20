@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,7 @@ public class AuthService {
   private final LoginAttemptLimiter loginAttemptLimiter;
   private final PasswordHashingGate passwordHashingGate;
   private final TransactionOperations transactionOperations;
+  private final ApplicationEventPublisher eventPublisher;
   private final Clock clock;
 
   /** 登録されていないメールアドレスでログインされたときに照合に使う、ダミーのハッシュ */
@@ -59,6 +61,7 @@ public class AuthService {
       LoginAttemptLimiter loginAttemptLimiter,
       PasswordHashingGate passwordHashingGate,
       TransactionOperations transactionOperations,
+      ApplicationEventPublisher eventPublisher,
       Clock clock) {
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
@@ -67,6 +70,7 @@ public class AuthService {
     this.loginAttemptLimiter = loginAttemptLimiter;
     this.passwordHashingGate = passwordHashingGate;
     this.transactionOperations = transactionOperations;
+    this.eventPublisher = eventPublisher;
     this.clock = clock;
     this.dummyPasswordHash = passwordEncoder.encode("dummy-password-for-timing");
   }
@@ -119,6 +123,8 @@ public class AuthService {
                   ? new ApiError.FieldError("email", EMAIL_TAKEN)
                   : new ApiError.FieldError("username", USERNAME_TAKEN)));
     }
+    // 確認メールは、保存が確定したあとに別のスレッドで送る（SignupVerificationMailListener）。送れなくても登録は成功にする
+    eventPublisher.publishEvent(new UserRegisteredEvent(saved.getId(), saved.getEmail()));
     return issueTokens(saved);
   }
 

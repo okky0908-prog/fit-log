@@ -3,14 +3,8 @@ package com.okimoto.fitlog.auth.service;
 import com.okimoto.fitlog.auth.config.RefreshTokenProperties;
 import com.okimoto.fitlog.auth.repository.RefreshTokenRepository;
 import com.okimoto.fitlog.jooq.tables.records.RefreshTokensRecord;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.OffsetDateTime;
-import java.util.Base64;
-import java.util.HexFormat;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,12 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RefreshTokenService {
 
-  private static final int TOKEN_BYTES = 32;
-
   private final RefreshTokenRepository repository;
   private final RefreshTokenProperties properties;
   private final Clock clock;
-  private final SecureRandom random = new SecureRandom();
 
   public RefreshTokenService(
       RefreshTokenRepository repository, RefreshTokenProperties properties, Clock clock) {
@@ -44,9 +35,7 @@ public class RefreshTokenService {
 
   /** 新しいトークンを発行し、トークンそのもの（ブラウザに渡す値）を返す */
   public String issue(long userId) {
-    byte[] bytes = new byte[TOKEN_BYTES];
-    random.nextBytes(bytes);
-    String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    String token = OpaqueTokens.generate();
     OffsetDateTime now = OffsetDateTime.now(clock);
     repository.insert(userId, hash(token), now.plus(properties.expiration()), now);
     return token;
@@ -108,8 +97,7 @@ public class RefreshTokenService {
   }
 
   /**
-   * 期限切れ（期限ちょうどを含む）の行を消す（{@link RefreshTokenCleanupJob}
-   * が毎日呼ぶ）。無効にした行も、期限が切れたら消す（期限内のものは、使い回しの検知に使うので残す）。
+   * 期限切れ（期限ちょうどを含む）の行を消す（{@link DailyCleanupJob} が毎日呼ぶ）。無効にした行も、期限が切れたら消す（期限内のものは、使い回しの検知に使うので残す）。
    * 消したあとで期限切れのトークンが使われても、「知らないトークン」として使えないだけ（全無効化は起きない）
    *
    * @return 消した件数
@@ -120,13 +108,7 @@ public class RefreshTokenService {
 
   /** トークンの SHA-256 のハッシュ（16進数64文字） */
   static String hash(String token) {
-    try {
-      return HexFormat.of()
-          .formatHex(
-              MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)));
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException("SHA-256 が使えません", e);
-    }
+    return OpaqueTokens.hash(token);
   }
 
   /**

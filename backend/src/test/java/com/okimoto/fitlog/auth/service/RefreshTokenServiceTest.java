@@ -42,8 +42,7 @@ class RefreshTokenServiceTest {
   private final RefreshTokenService service =
       new RefreshTokenService(
           repository,
-          new RefreshTokenProperties(
-              Duration.ofDays(14), false, Duration.ofSeconds(10), "0 0 4 * * *"),
+          new RefreshTokenProperties(Duration.ofDays(14), false, Duration.ofSeconds(10)),
           Clock.fixed(NOW, ZoneOffset.UTC));
 
   @Test

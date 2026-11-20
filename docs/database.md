@@ -953,19 +953,20 @@ CREATE INDEX idx_users_display_name_bigm  ON users    USING gin (LOWER(display_n
 | `V1__create_users.sql`（作成済み） | pg_bigm の拡張、users（ユーザー検索の索引を含む） | 段階 0（種目の外部キーの参照先として先に作った） |
 | `V2__create_exercises.sql`（作成済み） | exercises と初期データ58種目 | 段階 0（テストが1本通る細い道の API に使った。[テスト計画書 8.1](./test-plan.md#81-段階-0-は小さく始める)） |
 | `V3__create_refresh_tokens.sql`（作成済み） | refresh_tokens | 段階 1（認証。[テスト計画書 8.2](./test-plan.md#82-段階-1-の-pr-の順番) の 3） |
-| `V4__create_workouts.sql`（予定） | workouts・workout_exercises・workout_sets | 記録 |
-| `V5__create_workout_images.sql`（予定） | workout_images | 記録 |
-| `V6__create_follows.sql`（予定） | follows（承認の状態を含む） | タイムライン・フォロー |
-| `V7__create_likes.sql`（予定） | likes | ナイストレーニング |
-| `V8__create_comments.sql`（予定） | comments（返信を含む） | コメント |
+| `V4__create_email_verification.sql`（作成済み） | email_verification_tokens・mail_send_logs | 段階 1（確認メール。[テスト計画書 8.2](./test-plan.md#82-段階-1-の-pr-の順番) の 4） |
+| `V5__create_workouts.sql`（予定） | workouts・workout_exercises・workout_sets | 記録 |
+| `V6__create_workout_images.sql`（予定） | workout_images | 記録 |
+| `V7__create_follows.sql`（予定） | follows（承認の状態を含む） | タイムライン・フォロー |
+| `V8__create_likes.sql`（予定） | likes | ナイストレーニング |
+| `V9__create_comments.sql`（予定） | comments（返信を含む） | コメント |
 | （予定） | running_mets と初期データ | 消費カロリー（段階 5）。使う機能を作るときに作る |
 
 - 種目と `running_mets` の METs は、消費カロリー（段階 5）を作るときに原典の値と照らし合わせる。違っていたら、新しい番号のマイグレーションで `UPDATE` する（V2 は書き換えない）
-| `V9__create_body_records.sql` | body_records | 記録と集計（消費カロリー） |
-| `V10__create_goals.sql` | goals・goal_achievements・goal_cheers | 目標 |
-| `V11__create_notifications.sql` | notifications | 通知 |
-| `V12__create_hashtags.sql` | hashtags・workout_hashtags、ひとことの検索の索引 | 投稿の検索 |
-| `V13__create_templates.sql` | workout_templates・template_exercises・template_sets | テンプレート |
-| `V14__create_account_tokens.sql` | email_verification_tokens・password_reset_tokens・mail_send_logs | アカウント管理 |
+| `V10__create_body_records.sql` | body_records | 記録と集計（消費カロリー） |
+| `V11__create_goals.sql` | goals・goal_achievements・goal_cheers | 目標 |
+| `V12__create_notifications.sql` | notifications | 通知 |
+| `V13__create_hashtags.sql` | hashtags・workout_hashtags、ひとことの検索の索引 | 投稿の検索 |
+| `V14__create_templates.sql` | workout_templates・template_exercises・template_sets | テンプレート |
+| `V15__create_password_reset_tokens.sql` | password_reset_tokens | アカウント管理（確認用のトークンと送信の記録は V4 で先に作った） |
 
 - users の列（メールアドレスの確認日時・鍵アカウント・単位）は、使う機能より前の V1 でまとめて作る。users は多くの機能が参照するので、あとから列を足すマイグレーションを何度も重ねるより分かりやすいため

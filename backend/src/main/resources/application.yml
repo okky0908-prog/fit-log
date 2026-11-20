@@ -11,6 +11,10 @@ spring:
     password: ${POSTGRES_PASSWORD:fitlog}
   jooq:
     sql-dialect: postgres
+  # メールの送信。手元の開発は Mailpit（docker-compose）、テストは Testcontainers の Mailpit に SMTP で送る（docs/tech-stack.md 3.8）
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
   threads:
     virtual:
       # 仮想スレッドを使う（docs/tech-stack.md 3.1）
@@ -28,8 +32,21 @@ app:
     cookie-secure: ${REFRESH_TOKEN_COOKIE_SECURE:false}
     # 2つのタブが同時に再発行したときなどに、使い回しと間違えてログアウトさせないための猶予
     reuse-grace: 10s
-    # 期限切れの行を消す時刻（cron。秒 分 時 日 月 曜日。日本時間）。毎日 4:00
-    cleanup-cron: "0 0 4 * * *"
+  # 毎日の掃除（期限切れのトークン・古いメールの送信の記録を消す）の時刻（cron。秒 分 時 日 月 曜日。日本時間）。毎日 4:00
+  cleanup-cron: "0 0 4 * * *"
+  # メールアドレスの確認（docs/features.md F-05）
+  email-verification:
+    expiration: 24h
+    # 確認の画面（S-05）の URL。メールのリンクは、これに ?token=… を付けたもの
+    link-url: ${APP_BASE_URL:http://localhost:5173}/verify-email
+  mail:
+    # 送信元のアドレス
+    from: ${MAIL_FROM:noreply@fitlog.local}
+    # 同じアドレスに、window の間に max-per-window 通まで（確認メール・リセットメールを合わせて数える）
+    max-per-window: 5
+    window: 1h
+    # 送信の記録を残す期間（毎日の掃除で、これより古いものを消す）
+    log-retention: 1d
   # ログインの試行回数の制限（総当たりの対策）。同じメールアドレスで、最初の失敗から window の間に max-failures 回失敗したら、lock-duration の間ロックする
   login-attempt:
     max-failures: 5

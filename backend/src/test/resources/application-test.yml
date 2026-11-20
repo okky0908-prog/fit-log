@@ -5,6 +5,9 @@
 spring:
   datasource:
     url: jdbc:postgresql://testcontainers-not-imported.invalid:5432/fitlog
+  # メールも同じ（手元の Mailpit に送らない）
+  mail:
+    host: testcontainers-not-imported.invalid
 
 app:
   jwt:

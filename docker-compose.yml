@@ -1,6 +1,6 @@
 # 手元の開発で使うコンテナ。テストは使わない（Testcontainers が使い捨てのコンテナを作る）。
 # 前回の SNS アプリとポートが同じなので、同時に起動しない（CLAUDE.md）。
-# LocalStack（記録の画像）・Mailpit（メール）は、使う機能を作るときに足す（docs/test-plan.md 8.1）
+# LocalStack（記録の画像）は、使う機能を作るときに足す（docs/test-plan.md 8.1）
 name: fitlog
 
 services:
@@ -21,6 +21,13 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # 送ったメールを受け取り、画面（http://localhost:8025）で見せる。外には送らない（docs/tech-stack.md 3.8）
+  mailpit:
+    image: axllent/mailpit:v1.33.1
+    ports:
+      - "1025:1025"   # SMTP（バックエンドが送る先。application.yml の spring.mail）
+      - "8025:8025"   # 画面と API
 
 volumes:
   postgres_data:
