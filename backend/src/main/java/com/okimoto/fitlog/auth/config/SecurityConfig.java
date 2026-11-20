@@ -24,16 +24,23 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <ul>
  *   <li>セッションは使わず、リクエストごとに JWT で本人を確かめる
- *   <li>ログインなしで呼べるのは、新規登録・ログインだけ。ほかの API はログインが必要（docs/api.md の一覧の「認証」の列）
+ *   <li>ログインなしで呼べるのは、新規登録・ログイン・再発行・ログアウトだけ。ほかの API はログインが必要（docs/api.md の一覧の「認証」の列）
  *   <li>ログインしていなければ 401、権限がなければ 403 を、docs/api.md のエラーの形（JSON）で返す
  * </ul>
  */
 @Configuration
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({
+  JwtProperties.class,
+  RefreshTokenProperties.class,
+  LoginAttemptProperties.class,
+  PasswordHashingProperties.class
+})
 public class SecurityConfig {
 
-  /** ログインなしで呼べる API（すべて POST） */
-  static final String[] PUBLIC_POST_PATHS = {"/api/auth/signup", "/api/auth/login"};
+  /** ログインなしで呼べる API（すべて POST）。再発行・ログアウトは、アクセストークンの代わりにリフレッシュトークンの Cookie を使う */
+  static final String[] PUBLIC_POST_PATHS = {
+    "/api/auth/signup", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout"
+  };
 
   @Bean
   SecurityFilterChain securityFilterChain(

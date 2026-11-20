@@ -952,7 +952,7 @@ CREATE INDEX idx_users_display_name_bigm  ON users    USING gin (LOWER(display_n
 |---|---|---|
 | `V1__create_users.sql`（作成済み） | pg_bigm の拡張、users（ユーザー検索の索引を含む） | 段階 0（種目の外部キーの参照先として先に作った） |
 | `V2__create_exercises.sql`（作成済み） | exercises と初期データ58種目 | 段階 0（テストが1本通る細い道の API に使った。[テスト計画書 8.1](./test-plan.md#81-段階-0-は小さく始める)） |
-| `V3__create_refresh_tokens.sql`（予定） | refresh_tokens | 認証 |
+| `V3__create_refresh_tokens.sql`（作成済み） | refresh_tokens | 段階 1（認証。[テスト計画書 8.2](./test-plan.md#82-段階-1-の-pr-の順番) の 3） |
 | `V4__create_workouts.sql`（予定） | workouts・workout_exercises・workout_sets | 記録 |
 | `V5__create_workout_images.sql`（予定） | workout_images | 記録 |
 | `V6__create_follows.sql`（予定） | follows（承認の状態を含む） | タイムライン・フォロー |

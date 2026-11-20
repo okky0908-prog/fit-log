@@ -1,10 +1,14 @@
 package com.okimoto.fitlog.auth.controller;
 
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -16,6 +20,7 @@ import com.okimoto.fitlog.common.config.ClockConfig;
 import com.okimoto.fitlog.common.controller.ApiException;
 import com.okimoto.fitlog.common.controller.ErrorCode;
 import com.okimoto.fitlog.jooq.tables.records.UsersRecord;
+import jakarta.servlet.http.Cookie;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,7 +54,7 @@ class AuthControllerTest {
   @Test
   void 新規登録できたら201とトークンとユーザーの情報を返す() throws Exception {
     given(authService.signup("yamada", "山田太郎", "yamada@example.com", "password123"))
-        .willReturn(new AuthResult("access-token", user()));
+        .willReturn(new AuthResult("access-token", "refresh-token", user()));
 
     mockMvc
         .perform(
@@ -72,7 +77,10 @@ class AuthControllerTest {
         .andExpect(jsonPath("$.user.weightUnit").value("kg"))
         .andExpect(jsonPath("$.user.distanceUnit").value("km"))
         // パスワードのハッシュは返さない
-        .andExpect(jsonPath("$.user.passwordHash").doesNotExist());
+        .andExpect(jsonPath("$.user.passwordHash").doesNotExist())
+        // リフレッシュトークンは JSON には入れず、Cookie で渡す
+        .andExpect(jsonPath("$.refreshToken").doesNotExist())
+        .andExpect(header().string(HttpHeaders.SET_COOKIE, matchesPattern(REFRESH_COOKIE)));
   }
 
   /** 入力チェックの境界値（docs/test-plan.md 5.1）。有効な値の境界は、登録できる */
@@ -80,7 +88,7 @@ class AuthControllerTest {
   @MethodSource("validBoundaries")
   void 境界の内側の値なら登録できる(String field, String value) throws Exception {
     given(authService.signup(anyString(), anyString(), anyString(), anyString()))
-        .willReturn(new AuthResult("access-token", user()));
+        .willReturn(new AuthResult("access-token", "refresh-token", user()));
 
     mockMvc.perform(signup(validRequestWith(field, value))).andExpect(status().isCreated());
   }
@@ -151,7 +159,7 @@ class AuthControllerTest {
   @Test
   void ログインできたら200とトークンとユーザーの情報を返す() throws Exception {
     given(authService.login("yamada@example.com", "password123"))
-        .willReturn(new AuthResult("access-token", user()));
+        .willReturn(new AuthResult("access-token", "refresh-token", user()));
 
     mockMvc
         .perform(
@@ -160,7 +168,63 @@ class AuthControllerTest {
                 .content("{\"email\": \"yamada@example.com\", \"password\": \"password123\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.accessToken").value("access-token"))
-        .andExpect(jsonPath("$.user.username").value("yamada"));
+        .andExpect(jsonPath("$.user.username").value("yamada"))
+        .andExpect(header().string(HttpHeaders.SET_COOKIE, matchesPattern(REFRESH_COOKIE)));
+  }
+
+  @Test
+  void 再発行は_Cookieのリフレッシュトークンで_新しいトークンとCookieを返す() throws Exception {
+    given(authService.refresh("old-refresh-token"))
+        .willReturn(new AuthResult("access-token", "refresh-token", user()));
+
+    // アクセストークンなしで呼べる
+    mockMvc
+        .perform(post("/api/auth/refresh").cookie(new Cookie("refresh_token", "old-refresh-token")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.accessToken").value("access-token"))
+        .andExpect(jsonPath("$.user.username").value("yamada"))
+        .andExpect(header().string(HttpHeaders.SET_COOKIE, matchesPattern(REFRESH_COOKIE)));
+  }
+
+  @Test
+  void 再発行でCookieがなければ401のSESSION_EXPIRED() throws Exception {
+    mockMvc
+        .perform(post("/api/auth/refresh"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("SESSION_EXPIRED"));
+    verifyNoInteractions(authService);
+  }
+
+  @Test
+  void 再発行でリフレッシュトークンが使えなければ401のSESSION_EXPIRED() throws Exception {
+    given(authService.refresh("old-refresh-token"))
+        .willThrow(new ApiException(ErrorCode.SESSION_EXPIRED));
+
+    mockMvc
+        .perform(post("/api/auth/refresh").cookie(new Cookie("refresh_token", "old-refresh-token")))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("SESSION_EXPIRED"));
+  }
+
+  @Test
+  void ログアウトはリフレッシュトークンを無効にし_204とCookieを消す指示を返す() throws Exception {
+    mockMvc
+        .perform(post("/api/auth/logout").cookie(new Cookie("refresh_token", "refresh-token")))
+        .andExpect(status().isNoContent())
+        .andExpect(
+            header()
+                .string(
+                    HttpHeaders.SET_COOKIE,
+                    matchesPattern(
+                        "refresh_token=; Path=/api/auth; Max-Age=0; Expires=.*; HttpOnly;"
+                            + " SameSite=Strict")));
+    verify(authService).logout("refresh-token");
+  }
+
+  @Test
+  void ログアウトはCookieがなくても204() throws Exception {
+    mockMvc.perform(post("/api/auth/logout")).andExpect(status().isNoContent());
+    verifyNoInteractions(authService);
   }
 
   @Test
@@ -233,6 +297,11 @@ class AuthControllerTest {
         .andExpect(status().isMethodNotAllowed())
         .andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"));
   }
+
+  /** 14日（1209600秒）・JavaScript から読めない・ほかのサイトからのリクエストには付かない・/api/auth の下にだけ送る */
+  private static final String REFRESH_COOKIE =
+      "refresh_token=refresh-token; Path=/api/auth; Max-Age=1209600; Expires=.*; HttpOnly;"
+          + " SameSite=Strict";
 
   private String bearer(long userId) {
     return "Bearer " + jwtService.issue(userId);

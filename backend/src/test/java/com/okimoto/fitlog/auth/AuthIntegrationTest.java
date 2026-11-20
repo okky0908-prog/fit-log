@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.okimoto.fitlog.support.TestcontainersConfiguration;
+import jakarta.servlet.http.Cookie;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -22,6 +23,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -117,6 +119,76 @@ class AuthIntegrationTest {
       assertThat(List.of(results.get(0).get(), results.get(1).get()))
           .containsExactlyInAnyOrder(201, 409);
     }
+  }
+
+  /** リフレッシュトークンの状態遷移を、API から DB まで通して確かめる（交換・猶予の時間の中の再利用・ログアウト後の使い回し） */
+  @Test
+  void 再発行でトークンを交換し_ログアウトしたトークンが使われたら_そのユーザーのトークンをすべて無効にする() throws Exception {
+    String username = uniqueUsername();
+    Cookie first = refreshCookie(signup(username, username + "@example.com").andReturn());
+
+    // 交換すると、新しいアクセストークンで Me を取れる
+    MvcResult refreshed = refresh(first).andExpect(status().isOk()).andReturn();
+    Cookie second = refreshCookie(refreshed);
+    assertThat(second.getValue()).isNotEqualTo(first.getValue());
+    mockMvc
+        .perform(
+            get("/api/auth/me")
+                .header(
+                    HttpHeaders.AUTHORIZATION,
+                    "Bearer " + accessToken(refreshed.getResponse().getContentAsString())))
+        .andExpect(status().isOk());
+
+    // 交換したばかり（10秒以内）の古いトークンは、同時のリクエストとして使える
+    Cookie third = refreshCookie(refresh(first).andExpect(status().isOk()).andReturn());
+
+    // ログアウトしたトークンをもう一度使うと 401。盗まれた可能性があるので、ほかのトークン（third）も使えなくなる
+    mockMvc.perform(post("/api/auth/logout").cookie(second)).andExpect(status().isNoContent());
+    refresh(second)
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("SESSION_EXPIRED"));
+    refresh(third).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void 知らないリフレッシュトークンは401() throws Exception {
+    refresh(new Cookie("refresh_token", "unknown-token"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("SESSION_EXPIRED"));
+  }
+
+  /** docs/test-plan.md 4.8。5回失敗したら、正しいパスワードでも 429 */
+  @Test
+  void ログインに5回失敗したら_正しいパスワードでも429() throws Exception {
+    String username = uniqueUsername();
+    String email = username + "@example.com";
+    signup(username, email).andExpect(status().isCreated());
+    for (int i = 0; i < 5; i++) {
+      login(email, "wrong-password").andExpect(status().isUnauthorized());
+    }
+
+    login(email, "password123")
+        .andExpect(status().isTooManyRequests())
+        .andExpect(jsonPath("$.code").value("TOO_MANY_LOGIN_ATTEMPTS"));
+  }
+
+  private org.springframework.test.web.servlet.ResultActions refresh(Cookie cookie)
+      throws Exception {
+    return mockMvc.perform(post("/api/auth/refresh").cookie(cookie));
+  }
+
+  private org.springframework.test.web.servlet.ResultActions login(String email, String password)
+      throws Exception {
+    return mockMvc.perform(
+        post("/api/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(json(new Login(email, password))));
+  }
+
+  private static Cookie refreshCookie(MvcResult result) {
+    Cookie cookie = result.getResponse().getCookie("refresh_token");
+    assertThat(cookie).isNotNull();
+    return cookie;
   }
 
   private org.springframework.test.web.servlet.ResultActions signup(String username, String email)

@@ -7,8 +7,10 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.okimoto.fitlog.auth.config.JwtProperties;
+import com.okimoto.fitlog.auth.config.PasswordHashingProperties;
 import com.okimoto.fitlog.common.controller.ApiError;
 import com.okimoto.fitlog.common.controller.ApiException;
 import com.okimoto.fitlog.jooq.tables.records.UsersRecord;
@@ -29,6 +31,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.support.TransactionOperations;
 
 /** 新規登録・ログイン・ログイン中のユーザー（A-01〜A-03）の処理。Repository は偽物 */
 class AuthServiceTest {
@@ -43,11 +46,23 @@ class AuthServiceTest {
       new JwtService(
           new JwtProperties("test-secret-for-jwt-signing-0123456789abcdef", Duration.ofMinutes(15)),
           clock);
+  private final RefreshTokenService refreshTokenService = mock(RefreshTokenService.class);
+  private final LoginAttemptLimiter loginAttemptLimiter = mock(LoginAttemptLimiter.class);
   private AuthService authService;
 
   @BeforeEach
   void setUp() {
-    authService = new AuthService(userRepository, passwordEncoder, jwtService, clock);
+    given(refreshTokenService.issue(1L)).willReturn("refresh-token");
+    authService =
+        new AuthService(
+            userRepository,
+            passwordEncoder,
+            jwtService,
+            refreshTokenService,
+            loginAttemptLimiter,
+            new PasswordHashingGate(new PasswordHashingProperties(1, Duration.ofSeconds(1))),
+            TransactionOperations.withoutTransaction(),
+            clock);
   }
 
   @Test
@@ -67,6 +82,7 @@ class AuthServiceTest {
     assertThat(user.createdAt()).isEqualTo(OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
     // 保存したユーザーのトークンを返す（登録のあとはそのままログイン状態）
     assertThat(jwtService.parseUserId(result.accessToken())).contains(1L);
+    assertThat(result.refreshToken()).isEqualTo("refresh-token");
     assertThat(result.user().getId()).isEqualTo(1L);
   }
 
@@ -153,6 +169,86 @@ class AuthServiceTest {
     given(userRepository.findByEmail("yamada@example.com")).willReturn(Optional.of(registered()));
 
     assertInvalidCredentials(() -> authService.login("yamada@example.com", "wrong-password"));
+  }
+
+  @Test
+  void ログインできたら_リフレッシュトークンも発行し_失敗の回数を消す() {
+    given(userRepository.findByEmail("yamada@example.com")).willReturn(Optional.of(registered()));
+
+    AuthResult result = authService.login("Yamada@example.com", "password123");
+
+    assertThat(result.refreshToken()).isEqualTo("refresh-token");
+    verify(loginAttemptLimiter).checkNotLocked("yamada@example.com");
+    verify(loginAttemptLimiter).recordSuccess("yamada@example.com");
+    verify(loginAttemptLimiter, never()).recordFailure(any());
+  }
+
+  @Test
+  void ログインに失敗したら_そろえたメールアドレスで失敗を数える() {
+    given(userRepository.findByEmail("yamada@example.com")).willReturn(Optional.of(registered()));
+
+    assertInvalidCredentials(() -> authService.login(" Yamada@example.com", "wrong-password"));
+
+    verify(loginAttemptLimiter).recordFailure("yamada@example.com");
+    verify(loginAttemptLimiter, never()).recordSuccess(any());
+  }
+
+  @Test
+  void ロック中なら_ユーザーを探さずパスワードも照合せずに429() {
+    org.mockito.Mockito.doThrow(
+            new ApiException(
+                com.okimoto.fitlog.common.controller.ErrorCode.TOO_MANY_LOGIN_ATTEMPTS))
+        .when(loginAttemptLimiter)
+        .checkNotLocked("yamada@example.com");
+
+    assertThatThrownBy(() -> authService.login("yamada@example.com", "password123"))
+        .isInstanceOfSatisfying(
+            ApiException.class,
+            e -> assertThat(e.toApiError().code()).isEqualTo("TOO_MANY_LOGIN_ATTEMPTS"));
+    verifyNoInteractions(userRepository);
+  }
+
+  @Test
+  void 有効なリフレッシュトークンなら_新しいアクセストークンとリフレッシュトークンを返す() {
+    given(refreshTokenService.rotate("old"))
+        .willReturn(Optional.of(new RefreshTokenService.Rotation(1L, "new")));
+    given(userRepository.findById(1L)).willReturn(Optional.of(registered()));
+
+    AuthResult result = authService.refresh("old");
+
+    assertThat(jwtService.parseUserId(result.accessToken())).contains(1L);
+    assertThat(result.refreshToken()).isEqualTo("new");
+    assertThat(result.user().getUsername()).isEqualTo("yamada");
+  }
+
+  @Test
+  void 使えないリフレッシュトークンなら401のSESSION_EXPIRED() {
+    given(refreshTokenService.rotate("old")).willReturn(Optional.empty());
+
+    assertSessionExpired(() -> authService.refresh("old"));
+  }
+
+  @Test
+  void リフレッシュトークンのユーザーがいなければ401のSESSION_EXPIRED() {
+    given(refreshTokenService.rotate("old"))
+        .willReturn(Optional.of(new RefreshTokenService.Rotation(1L, "new")));
+    given(userRepository.findById(1L)).willReturn(Optional.empty());
+
+    assertSessionExpired(() -> authService.refresh("old"));
+  }
+
+  @Test
+  void ログアウトでリフレッシュトークンを無効にする() {
+    authService.logout("token");
+
+    verify(refreshTokenService).revoke("token");
+  }
+
+  private static void assertSessionExpired(ThrowingCallable call) {
+    assertThatThrownBy(call)
+        .isInstanceOfSatisfying(
+            ApiException.class,
+            e -> assertThat(e.toApiError().code()).isEqualTo("SESSION_EXPIRED"));
   }
 
   @Test

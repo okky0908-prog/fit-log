@@ -22,6 +22,8 @@ public enum ErrorCode {
   UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "ログインが必要です"),
   /** ログインで、メールアドレスかパスワードが違う（どちらが違うかは教えない） */
   INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "メールアドレスまたはパスワードが正しくありません"),
+  /** リフレッシュトークンがない・無効・期限切れ。もう一度ログインしてもらう */
+  SESSION_EXPIRED(HttpStatus.UNAUTHORIZED, "ログインの有効期限が切れました。もう一度ログインしてください"),
 
   // ===== 403 =====
   /** 見られるが、操作する権限がない */
@@ -38,11 +40,18 @@ public enum ErrorCode {
   PAYLOAD_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "送信するデータが大きすぎます"),
   UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "リクエストの形式（Content-Type）に対応していません"),
 
+  // ===== 429 =====
+  /** 同じメールアドレスでログインの失敗が続いたので、しばらくログインを受け付けない（総当たりの対策） */
+  TOO_MANY_LOGIN_ATTEMPTS(
+      HttpStatus.TOO_MANY_REQUESTS, "ログインの失敗が続いたため、しばらくログインできません。15分ほど待ってからもう一度お試しください"),
+
   // ===== 500 / 503 =====
   /** 想定していないエラー。内部の情報は利用者に出さず、ログにだけ残す */
   INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "サーバーでエラーが発生しました。時間をおいてもう一度お試しください"),
   /** DB につながらないなど */
-  SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "ただいまサービスを利用できません。時間をおいてもう一度お試しください");
+  SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "ただいまサービスを利用できません。時間をおいてもう一度お試しください"),
+  /** ログイン・新規登録が集中して、パスワードの照合の順番を待ちきれなかった（ほかの API の CPU を残すため） */
+  SERVER_BUSY(HttpStatus.SERVICE_UNAVAILABLE, "ただいま混み合っています。少し待ってからもう一度お試しください");
 
   private final HttpStatus status;
   private final String message;
