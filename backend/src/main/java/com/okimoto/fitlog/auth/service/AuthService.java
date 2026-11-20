@@ -17,6 +17,7 @@ import java.util.Set;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionOperations;
 
 /** 新規登録・ログイン・ログイン中のユーザー（A-01〜A-03） */
 @Service
@@ -41,6 +42,10 @@ public class AuthService {
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
   private final JwtService jwtService;
+  private final RefreshTokenService refreshTokenService;
+  private final LoginAttemptLimiter loginAttemptLimiter;
+  private final PasswordHashingGate passwordHashingGate;
+  private final TransactionOperations transactionOperations;
   private final Clock clock;
 
   /** 登録されていないメールアドレスでログインされたときに照合に使う、ダミーのハッシュ */
@@ -50,10 +55,18 @@ public class AuthService {
       UserRepository userRepository,
       PasswordEncoder passwordEncoder,
       JwtService jwtService,
+      RefreshTokenService refreshTokenService,
+      LoginAttemptLimiter loginAttemptLimiter,
+      PasswordHashingGate passwordHashingGate,
+      TransactionOperations transactionOperations,
       Clock clock) {
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
     this.jwtService = jwtService;
+    this.refreshTokenService = refreshTokenService;
+    this.loginAttemptLimiter = loginAttemptLimiter;
+    this.passwordHashingGate = passwordHashingGate;
+    this.transactionOperations = transactionOperations;
     this.clock = clock;
     this.dummyPasswordHash = passwordEncoder.encode("dummy-password-for-timing");
   }
@@ -61,7 +74,7 @@ public class AuthService {
   /**
    * 新規登録（A-01）。入力の形は Controller で確かめ済み。
    *
-   * <p>保存は1回の INSERT なので、トランザクションは使わない。BCrypt のハッシュ（重い計算）の間に DB の接続を持たないようにするため
+   * <p>BCrypt のハッシュ（重い計算）はトランザクションの外で行い、DB の接続を持つのは保存の間だけにする。ユーザーとリフレッシュトークンの保存は、1つのトランザクションで確定する
    */
   public AuthResult signup(String username, String displayName, String email, String password) {
     String normalizedEmail = normalizeEmail(email);
@@ -87,8 +100,12 @@ public class AuthService {
             username,
             displayName.strip(),
             normalizedEmail,
-            passwordEncoder.encode(password),
+            passwordHashingGate.run(() -> passwordEncoder.encode(password)),
             OffsetDateTime.now(clock));
+    return transactionOperations.execute(status -> saveAndIssueTokens(user));
+  }
+
+  private AuthResult saveAndIssueTokens(NewUser user) {
     UsersRecord saved;
     try {
       saved = userRepository.insert(user);
@@ -102,23 +119,56 @@ public class AuthService {
                   ? new ApiError.FieldError("email", EMAIL_TAKEN)
                   : new ApiError.FieldError("username", USERNAME_TAKEN)));
     }
-    return new AuthResult(jwtService.issue(saved.getId()), saved);
+    return issueTokens(saved);
   }
 
   /**
    * ログイン（A-02）。どちらが違うかは教えない。
    *
-   * <p>登録されていないメールアドレスでも、ダミーのハッシュで同じように照合する。応答の速さから、登録されているメールアドレスを推測されないようにするため
+   * <ul>
+   *   <li>失敗が続いてロック中なら、ユーザーを探さず、パスワードも照合しない（429）
+   *   <li>登録されていないメールアドレスでも、ダミーのハッシュで同じように照合する。応答の速さから、登録されているメールアドレスを推測されないようにするため
+   *   <li>トランザクションは使わない。照合の間に DB の接続を持たないようにするため（DB の操作はユーザーの検索とトークンの保存の1回ずつ）
+   * </ul>
    */
   public AuthResult login(String email, String password) {
-    Optional<UsersRecord> user = userRepository.findByEmail(normalizeEmail(email));
+    String normalizedEmail = normalizeEmail(email);
+    loginAttemptLimiter.checkNotLocked(normalizedEmail);
+    Optional<UsersRecord> user = userRepository.findByEmail(normalizedEmail);
     String hash = user.map(UsersRecord::getPasswordHash).orElse(dummyPasswordHash);
-    // BCrypt は72バイトを超えるパスワードで例外を投げる。登録できない長さなので、照合せずに「合わない」とする
-    boolean matches = fitsBcrypt(password) && passwordEncoder.matches(password, hash);
+    // BCrypt は72バイトより後ろを無視して照合する。72バイトを超えるパスワードは登録できないので、照合せずに「合わない」とする
+    boolean matches =
+        fitsBcrypt(password)
+            && passwordHashingGate.run(() -> passwordEncoder.matches(password, hash));
     if (user.isEmpty() || !matches) {
+      loginAttemptLimiter.recordFailure(normalizedEmail);
       throw new ApiException(ErrorCode.INVALID_CREDENTIALS);
     }
-    return new AuthResult(jwtService.issue(user.get().getId()), user.get());
+    loginAttemptLimiter.recordSuccess(normalizedEmail);
+    return issueTokens(user.get());
+  }
+
+  /**
+   * アクセストークンの再発行（A-04）。リフレッシュトークンも新しいものに交換する。
+   *
+   * <p>トランザクションは {@link RefreshTokenService#rotate}
+   * の中で終える（使えないトークンで投げる例外で、使い回しの検知の処理がロールバックされないように）
+   */
+  public AuthResult refresh(String refreshToken) {
+    RefreshTokenService.Rotation rotation =
+        refreshTokenService
+            .rotate(refreshToken)
+            .orElseThrow(() -> new ApiException(ErrorCode.SESSION_EXPIRED));
+    UsersRecord user =
+        userRepository
+            .findById(rotation.userId())
+            .orElseThrow(() -> new ApiException(ErrorCode.SESSION_EXPIRED));
+    return new AuthResult(jwtService.issue(user.getId()), rotation.refreshToken(), user);
+  }
+
+  /** ログアウト（A-05）。リフレッシュトークンを無効にする（アクセストークンは、期限の15分までは使えるまま） */
+  public void logout(String refreshToken) {
+    refreshTokenService.revoke(refreshToken);
   }
 
   /** ログイン中のユーザー（A-03）。トークンは正しいが、ユーザーがいない（退会した）ときは 401 */
@@ -126,6 +176,11 @@ public class AuthService {
     return userRepository
         .findById(userId)
         .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHENTICATED));
+  }
+
+  private AuthResult issueTokens(UsersRecord user) {
+    return new AuthResult(
+        jwtService.issue(user.getId()), refreshTokenService.issue(user.getId()), user);
   }
 
   private static boolean fitsBcrypt(String password) {
