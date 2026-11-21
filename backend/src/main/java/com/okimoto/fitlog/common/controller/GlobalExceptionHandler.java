@@ -10,6 +10,7 @@ import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Controller とその先で起きた例外を、docs/api.md のエラーの形にする。
@@ -47,6 +48,12 @@ public class GlobalExceptionHandler {
   /** JSON が壊れているなど、リクエストを読めない */
   @ExceptionHandler(HttpMessageNotReadableException.class)
   ResponseEntity<ApiError> handleUnreadable(HttpMessageNotReadableException e) {
+    return respond(ApiError.of(ErrorCode.MALFORMED_REQUEST));
+  }
+
+  /** URL の ID が数でない（{@code /api/workouts/abc}）など、URL やクエリの値を型に変換できない */
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+  ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
     return respond(ApiError.of(ErrorCode.MALFORMED_REQUEST));
   }
 
