@@ -16,11 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 種目の API（docs/api.md A-30・A-32〜A-34）。
- *
- * <p>A-31（最近使った種目）は、記録の表を作るときに足す
- */
+/** 種目の API（docs/api.md A-30〜A-34） */
 @RestController
 @RequestMapping("/api/exercises")
 public class ExerciseController {
@@ -38,6 +34,12 @@ public class ExerciseController {
     return exerciseService.search(user.id(), params.q(), params.bodyPart()).stream()
         .map(ExerciseResponse::from)
         .toList();
+  }
+
+  /** A-31 最近使った種目 */
+  @GetMapping("/recent")
+  public List<ExerciseResponse> recent(@AuthenticationPrincipal AuthenticatedUser user) {
+    return exerciseService.recent(user.id()).stream().map(ExerciseResponse::from).toList();
   }
 
   /** A-32 自分専用の種目の追加 */

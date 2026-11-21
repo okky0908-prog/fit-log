@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -20,10 +21,14 @@ import com.okimoto.fitlog.exercise.repository.ExerciseRepository;
 import com.okimoto.fitlog.exercise.repository.NewExercise;
 import com.okimoto.fitlog.support.TestAccounts;
 import com.okimoto.fitlog.support.TestcontainersConfiguration;
+import com.okimoto.fitlog.support.WorkoutFixture;
+import com.okimoto.fitlog.workout.calc.StoredSet;
+import com.okimoto.fitlog.workout.repository.WorkoutRepository;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,6 +42,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -44,8 +50,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * 種目の API（A-30・A-32〜A-34）を、API から DB まで通して確かめる（docs/api.md「種目・テンプレート」、docs/test-plan.md
- * 5.1・5.12）。DB はテスト全体で共有するので、テストごとに新しいユーザーを作る
+ * 種目の API（A-30〜A-34）を、API から DB まで通して確かめる（docs/api.md「種目・テンプレート」、docs/test-plan.md 5.1・5.12）。DB
+ * はテスト全体で共有するので、テストごとに新しいユーザーを作る
  */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
@@ -60,6 +66,7 @@ class ExerciseIntegrationTest {
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private DSLContext dsl;
   @Autowired private JwtService jwtService;
+  @Autowired private WorkoutRepository workoutRepository;
 
   @Nested
   class 検索_A30 {
@@ -301,6 +308,56 @@ class ExerciseIntegrationTest {
   }
 
   @Nested
+  class 最近使った種目_A31 {
+
+    @Test
+    void 自分の記録で使った種目を10件まで_検索と同じ形で返す() throws Exception {
+      String me = signup();
+      long custom = idOf(create(me, "最近の自分の種目", "legs", "reps"));
+      WorkoutFixture.Builder workout =
+          workouts().of(userId(me)).exercise(custom, List.of(new StoredSet(null, 10, null, null)));
+      for (String name :
+          List.of(
+              "ベンチプレス",
+              "インクラインベンチプレス",
+              "ダンベルプレス",
+              "ダンベルフライ",
+              "チェストプレス",
+              "ケーブルクロスオーバー",
+              "ディップス",
+              "腕立て伏せ",
+              "デッドリフト",
+              "ベントオーバーロウ")) {
+        workout.reps(name, 10, 1);
+      }
+      workout.save();
+
+      recent(me)
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.length()").value(10))
+          .andExpect(jsonPath("$[0].id").value(custom))
+          .andExpect(jsonPath("$[0].name").value("最近の自分の種目"))
+          .andExpect(jsonPath("$[0].bodyPart").value("legs"))
+          .andExpect(jsonPath("$[0].recordType").value("reps"))
+          .andExpect(jsonPath("$[0].isRunning").value(false))
+          .andExpect(jsonPath("$[0].custom").value(true))
+          .andExpect(jsonPath("$[1].name").value("ベンチプレス"))
+          .andExpect(jsonPath("$[1].custom").value(false))
+          .andExpect(jsonPath("$[9].name").value("デッドリフト"));
+    }
+
+    @Test
+    void 記録がなければ空() throws Exception {
+      recent(signup()).andExpect(status().isOk()).andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void ログインしていなければ401() throws Exception {
+      mockMvc.perform(get("/api/exercises/recent")).andExpect(status().isUnauthorized());
+    }
+  }
+
+  @Nested
   class 削除_A34 {
 
     @Test
@@ -314,6 +371,62 @@ class ExerciseIntegrationTest {
       remove(me, id)
           .andExpect(status().isNotFound())
           .andExpect(jsonPath("$.code").value("EXERCISE_NOT_FOUND"));
+    }
+
+    @Test
+    void 記録で使っている種目は409で消えず_記録を消せば消せる() throws Exception {
+      String me = signup();
+      long id = idOf(create(me, "記録で使う種目", "legs", "reps"));
+      long workoutId =
+          workouts()
+              .of(userId(me))
+              .exercise(id, List.of(new StoredSet(null, 10, null, null)))
+              .save();
+
+      remove(me, id)
+          .andExpect(status().isConflict())
+          .andExpect(jsonPath("$.code").value("EXERCISE_IN_USE"))
+          .andExpect(jsonPath("$.message").value("記録で使っている種目は削除できません"));
+      search(me, "?q=記録で使う種目").andExpect(jsonPath("$[*].name").value(hasItem("記録で使う種目")));
+
+      mockMvc
+          .perform(
+              delete("/api/workouts/" + workoutId)
+                  .header(HttpHeaders.AUTHORIZATION, "Bearer " + me))
+          .andExpect(status().isNoContent());
+      remove(me, id).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void 種目の削除と_その種目を使う記録の保存が同時に来ても_500にならない() throws Exception {
+      String me = signup();
+      // 割り込みが起きる順番は毎回変わるので、何回か繰り返す
+      for (int round = 0; round < 10; round++) {
+        long id = idOf(create(me, "同時に使う種目" + round, "legs", "reps"));
+        CountDownLatch start = new CountDownLatch(1);
+        int removed;
+        int saved;
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+          Future<Integer> removal =
+              executor.submit(() -> {
+                start.await();
+                return remove(me, id).andReturn().getResponse().getStatus();
+              });
+          Future<Integer> save =
+              executor.submit(() -> {
+                start.await();
+                return createWorkout(me, id).andReturn().getResponse().getStatus();
+              });
+          start.countDown();
+          removed = removal.get();
+          saved = save.get();
+        }
+
+        // 先に保存されたなら削除は 409、先に削除されたなら保存は 400（種目が見つからない）
+        assertThat(List.of(removed, saved))
+            .as("%d 回目", round)
+            .isIn(List.of(409, 201), List.of(204, 400));
+      }
     }
 
     @Test
@@ -349,11 +462,54 @@ class ExerciseIntegrationTest {
     assertThat(dsl.fetchCount(EXERCISES, EXERCISES.NAME.eq("退会した人の種目"))).isZero();
   }
 
+  @Test
+  void トークンが有効でもユーザーがいなければ_削除は401() throws Exception {
+    String token = jwtService.issue(Long.MAX_VALUE);
+
+    remove(token, 1L)
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+  }
+
   // ===== 補助 =====
 
   private ResultActions search(String token, String query) throws Exception {
     return mockMvc.perform(
         get("/api/exercises" + query).header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
+  }
+
+  private ResultActions recent(String token) throws Exception {
+    return mockMvc.perform(
+        get("/api/exercises/recent").header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
+  }
+
+  /** その種目を1つだけ使う記録を、API で作る */
+  private ResultActions createWorkout(String token, long exerciseId) throws Exception {
+    Map<String, Object> data =
+        Map.of(
+            "performedOn",
+            "2026-11-01",
+            "visibility",
+            "public",
+            "weightUnit",
+            "kg",
+            "distanceUnit",
+            "km",
+            "exercises",
+            List.of(Map.of("exerciseId", exerciseId, "sets", List.of(Map.of("reps", 10)))));
+    return mockMvc.perform(
+        multipart("/api/workouts")
+            .file(
+                new MockMultipartFile(
+                    "data",
+                    "",
+                    MediaType.APPLICATION_JSON_VALUE,
+                    objectMapper.writeValueAsBytes(data)))
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
+  }
+
+  private WorkoutFixture workouts() {
+    return new WorkoutFixture(dsl, workoutRepository);
   }
 
   private ResultActions create(String token, String name, String bodyPart, String recordType)

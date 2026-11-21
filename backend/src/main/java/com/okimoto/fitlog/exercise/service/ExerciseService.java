@@ -21,6 +21,9 @@ public class ExerciseService {
   /** 自分専用の種目の上限 */
   static final int MAX_CUSTOM_EXERCISES = 100;
 
+  /** 最近使った種目の件数 */
+  private static final int RECENT_LIMIT = 10;
+
   /** name_key の列の長さ。NFKC で文字が増える名前（「㌔」→「キロ」）は、入力が30文字以内でも入らない */
   private static final int MAX_NAME_KEY_LENGTH = 30;
 
@@ -88,14 +91,25 @@ public class ExerciseService {
         OffsetDateTime.now(clock));
   }
 
+  /** A-31 最近使った種目（10件まで） */
+  @Transactional(readOnly = true)
+  public List<ExercisesRecord> recent(long me) {
+    return exerciseRepository.recent(me, RECENT_LIMIT);
+  }
+
   /**
-   * A-34 自分専用の種目の削除。テンプレートの中のその種目は一緒に消える。
+   * A-34 自分専用の種目の削除。記録で使っている種目は 409。テンプレートの中のその種目は一緒に消える。
    *
-   * <p>記録・目標で使っている種目を消せない決まり（EXERCISE_IN_USE）は、記録・目標の表を作るときに足す
+   * <p>目標で使っている種目を消せない決まりは、目標の表を作るときに足す
    */
   @Transactional
   public void delete(long me, long id) {
+    // 記録の保存（作成・編集）も同じ行をロックするので、使っていないと確かめたあとに、その種目を使う記録は保存されない
+    lockUser(me);
     findOwn(me, id);
+    if (exerciseRepository.usedInWorkouts(id)) {
+      throw new ApiException(ErrorCode.EXERCISE_IN_USE);
+    }
     exerciseRepository.deleteCustom(id);
   }
 

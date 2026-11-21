@@ -3,12 +3,14 @@ package com.okimoto.fitlog.workout;
 import static com.okimoto.fitlog.jooq.Tables.WORKOUTS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.okimoto.fitlog.auth.service.JwtService;
 import com.okimoto.fitlog.common.calc.JapanTime;
 import com.okimoto.fitlog.exercise.calc.ExerciseRules;
 import com.okimoto.fitlog.exercise.repository.ExerciseRepository;
@@ -36,6 +38,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
@@ -44,7 +47,10 @@ import org.springframework.test.web.servlet.ResultActions;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
-/** 記録の作成（A-20）と詳細（A-21）を、API から DB まで通して確かめる（docs/api.md「記録」、docs/test-plan.md 4.1・4.2・5.1・5.2） */
+/**
+ * 記録の作成（A-20）・詳細（A-21）・編集（A-22）・削除（A-23）を、API から DB まで通して確かめる（docs/api.md「記録」、docs/test-plan.md
+ * 4.1・4.2・5.1・5.2）
+ */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -61,6 +67,7 @@ class WorkoutIntegrationTest {
   @Autowired private WorkoutRepository workoutRepository;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private Clock clock;
+  @Autowired private JwtService jwtService;
 
   private TestAccounts accounts;
   private WorkoutFixture fixture;
@@ -434,7 +441,193 @@ class WorkoutIntegrationTest {
     }
   }
 
+  @Nested
+  class 編集_A22 {
+
+    @Test
+    void 本人は編集できる_200で編集後の記録を返し_種目とセットが置き換わり_編集日時が入る() throws Exception {
+      Account me = accounts.signup();
+      long id =
+          fixture
+              .of(me.id())
+              .body("前のひとこと")
+              .durationMin(30)
+              .weightReps("ベンチプレス", 60, 10, 3)
+              .reps("腕立て伏せ", 20, 1)
+              .save();
+      Map<String, Object> data = valid();
+      data.put("body", "  後のひとこと\r\n#胸トレ ");
+      data.put("visibility", "private");
+      data.put("weightUnit", "lb");
+      data.put("exercises", List.of(exercise(BENCH_PRESS, set(135, 8))));
+
+      edit(me, id, data)
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.id").value(id))
+          .andExpect(jsonPath("$.body").value("後のひとこと\n#胸トレ"))
+          .andExpect(jsonPath("$.durationMin").isEmpty())
+          .andExpect(jsonPath("$.visibility").value("private"))
+          .andExpect(jsonPath("$.editedAt").value(org.hamcrest.Matchers.endsWith("+09:00")))
+          .andExpect(jsonPath("$.exercises.length()").value(1))
+          .andExpect(jsonPath("$.exercises[0].sets.length()").value(1))
+          .andExpect(jsonPath("$.exercises[0].sets[0].weightKg").value(61.235))
+          .andExpect(jsonPath("$.mine").value(true));
+
+      // 詳細でも、編集後の内容が見える
+      detail(me, id)
+          .andExpect(jsonPath("$.body").value("後のひとこと\n#胸トレ"))
+          .andExpect(jsonPath("$.editedAt").isNotEmpty())
+          .andExpect(jsonPath("$.exercises[0].sets[0].reps").value(8));
+    }
+
+    @Test
+    void 入力のエラーは作成と同じく400でまとめて返し_記録は変わらない() throws Exception {
+      Account me = accounts.signup();
+      long id = fixture.of(me.id()).body("そのまま").save();
+      Map<String, Object> data = valid();
+      data.put("performedOn", JapanTime.today(clock).plusDays(1).toString());
+      data.put("exercises", List.of(exercise(99_999L, reps(10))));
+
+      edit(me, id, data)
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+          .andExpect(
+              jsonPath("$.errors[*].field")
+                  .value(containsInAnyOrder("performedOn", "exercises[0].exerciseId")));
+
+      detail(me, id)
+          .andExpect(jsonPath("$.body").value("そのまま"))
+          .andExpect(jsonPath("$.editedAt").isEmpty());
+    }
+
+    @Test
+    void 見られる他人の記録は403_見てはいけない記録とない記録は404_どれも変わらない() throws Exception {
+      Account author = accounts.signup();
+      Account stranger = accounts.signup();
+      long visible = fixture.of(author.id()).body("公開").save();
+      long hidden = fixture.of(author.id()).visibility("private").body("自分のみ").save();
+      Account locked = accounts.signup();
+      accounts.makePrivate(locked);
+      long lockedPublic = fixture.of(locked.id()).body("鍵").save();
+      Map<String, Object> data = valid();
+      data.put("body", "書き換え");
+
+      edit(stranger, visible, data)
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+      for (long id : new long[] {hidden, lockedPublic, Long.MAX_VALUE}) {
+        edit(stranger, id, data)
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value("WORKOUT_NOT_FOUND"));
+      }
+
+      detail(author, visible).andExpect(jsonPath("$.body").value("公開"));
+      detail(author, hidden).andExpect(jsonPath("$.body").value("自分のみ"));
+      detail(locked, lockedPublic).andExpect(jsonPath("$.body").value("鍵"));
+    }
+
+    @Test
+    void 他人の記録なら_入力に誤りがあっても403か404を返す() throws Exception {
+      // 直しても編集できないので、入力のチェックより先に返す
+      Account author = accounts.signup();
+      Account stranger = accounts.signup();
+      long visible = fixture.of(author.id()).save();
+      long hidden = fixture.of(author.id()).visibility("private").save();
+      Map<String, Object> data = valid();
+      data.put("exercises", List.of());
+
+      edit(stranger, visible, data).andExpect(status().isForbidden());
+      edit(stranger, hidden, data).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void IDが数でなければ400_ログインしていなければ401() throws Exception {
+      edit(accounts.signup(), "abc", valid()).andExpect(status().isBadRequest());
+      mockMvc
+          .perform(multipart(HttpMethod.PUT, "/api/workouts/1").file(dataPart(valid())))
+          .andExpect(status().isUnauthorized());
+    }
+  }
+
+  @Nested
+  class 削除_A23 {
+
+    @Test
+    void 本人は削除できる_204を返し_そのあとは404() throws Exception {
+      Account me = accounts.signup();
+      long id = fixture.of(me.id()).weightReps("スクワット", 100, 5, 3).save();
+
+      remove(me, id).andExpect(status().isNoContent());
+
+      detail(me, id).andExpect(status().isNotFound());
+      remove(me, id).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void 見られる他人の記録は403_見てはいけない記録とない記録は404_どれも消えない() throws Exception {
+      Account author = accounts.signup();
+      Account stranger = accounts.signup();
+      long visible = fixture.of(author.id()).save();
+      long hidden = fixture.of(author.id()).visibility("followers").save();
+      Account locked = accounts.signup();
+      accounts.makePrivate(locked);
+      long lockedPublic = fixture.of(locked.id()).save();
+
+      remove(stranger, visible)
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+      for (long id : new long[] {hidden, lockedPublic, Long.MAX_VALUE}) {
+        remove(stranger, id)
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value("WORKOUT_NOT_FOUND"));
+      }
+
+      detail(author, visible).andExpect(status().isOk());
+      detail(author, hidden).andExpect(status().isOk());
+      detail(locked, lockedPublic).andExpect(status().isOk());
+    }
+
+    @Test
+    void IDが数でなければ400_ログインしていなければ401() throws Exception {
+      remove(accounts.signup(), "abc").andExpect(status().isBadRequest());
+      mockMvc.perform(delete("/api/workouts/1")).andExpect(status().isUnauthorized());
+    }
+  }
+
+  @Test
+  void トークンが有効でもユーザーがいなければ_作成と編集は401() throws Exception {
+    // 退会した直後で、アクセストークンの期限（15分）がまだ残っているとき
+    Account gone = new Account(Long.MAX_VALUE, "gone", jwtService.issue(Long.MAX_VALUE));
+    Account author = accounts.signup();
+    long id = fixture.of(author.id()).save();
+
+    create(gone, valid())
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+    edit(gone, id, valid())
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+  }
+
   // ===== 補助 =====
+
+  private ResultActions edit(Account account, Object id, Map<String, Object> data)
+      throws Exception {
+    return mockMvc.perform(
+        multipart(HttpMethod.PUT, "/api/workouts/" + id)
+            .file(dataPart(data))
+            .header(HttpHeaders.AUTHORIZATION, account.bearer()));
+  }
+
+  private ResultActions remove(Account account, Object id) throws Exception {
+    return mockMvc.perform(
+        delete("/api/workouts/" + id).header(HttpHeaders.AUTHORIZATION, account.bearer()));
+  }
+
+  private MockMultipartFile dataPart(Map<String, Object> data) {
+    return new MockMultipartFile(
+        "data", "", MediaType.APPLICATION_JSON_VALUE, objectMapper.writeValueAsBytes(data));
+  }
 
   private ResultActions create(Account account, Map<String, Object> data) throws Exception {
     MockMultipartFile part =
