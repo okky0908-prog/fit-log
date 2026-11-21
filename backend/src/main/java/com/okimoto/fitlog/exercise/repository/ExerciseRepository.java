@@ -1,6 +1,8 @@
 package com.okimoto.fitlog.exercise.repository;
 
 import static com.okimoto.fitlog.jooq.Tables.EXERCISES;
+import static com.okimoto.fitlog.jooq.Tables.WORKOUTS;
+import static com.okimoto.fitlog.jooq.Tables.WORKOUT_EXERCISES;
 import static org.jooq.impl.DSL.noCondition;
 
 import com.okimoto.fitlog.exercise.calc.ExerciseRules;
@@ -13,6 +15,8 @@ import java.util.Map;
 import java.util.Optional;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
+import org.jooq.Field;
+import org.jooq.Table;
 import org.springframework.stereotype.Repository;
 
 /** 種目（exercises）の読み書き */
@@ -80,6 +84,51 @@ public class ExerciseRepository {
         .where(EXERCISES.ID.in(ids))
         .and(EXERCISES.OWNER_ID.isNull().or(EXERCISES.OWNER_ID.eq(ownerId)))
         .fetchMap(EXERCISES.ID, EXERCISES.RECORD_TYPE);
+  }
+
+  /**
+   * 最近使った種目（A-31）。その人の記録で使った種目を、最後に使った記録の新しい順（実施日 → 投稿日時）に並べる。同じ記録の中では種目の順
+   *
+   * @param limit 最大の件数
+   */
+  public List<ExercisesRecord> recent(long ownerId, int limit) {
+    Field<Long> workoutId = WORKOUTS.ID.as("workout_id");
+    // 種目ごとに、最後に使った記録の行だけを残す
+    Table<?> latest =
+        dsl.selectDistinct(
+                WORKOUT_EXERCISES.EXERCISE_ID,
+                WORKOUTS.PERFORMED_ON,
+                WORKOUTS.CREATED_AT,
+                workoutId,
+                WORKOUT_EXERCISES.SORT_ORDER)
+            .on(WORKOUT_EXERCISES.EXERCISE_ID)
+            .from(WORKOUT_EXERCISES)
+            .join(WORKOUTS)
+            .on(WORKOUTS.ID.eq(WORKOUT_EXERCISES.WORKOUT_ID))
+            .where(WORKOUTS.USER_ID.eq(ownerId))
+            .orderBy(
+                WORKOUT_EXERCISES.EXERCISE_ID,
+                WORKOUTS.PERFORMED_ON.desc(),
+                WORKOUTS.CREATED_AT.desc(),
+                WORKOUTS.ID.desc(),
+                WORKOUT_EXERCISES.SORT_ORDER)
+            .asTable("latest");
+    return dsl.select(EXERCISES.fields())
+        .from(latest)
+        .join(EXERCISES)
+        .on(EXERCISES.ID.eq(latest.field(WORKOUT_EXERCISES.EXERCISE_ID)))
+        .orderBy(
+            latest.field(WORKOUTS.PERFORMED_ON).desc(),
+            latest.field(WORKOUTS.CREATED_AT).desc(),
+            latest.field(workoutId).desc(),
+            latest.field(WORKOUT_EXERCISES.SORT_ORDER))
+        .limit(limit)
+        .fetchInto(EXERCISES);
+  }
+
+  /** 記録で使っている種目か（使っている自分専用の種目は消せない。A-34） */
+  public boolean usedInWorkouts(long id) {
+    return dsl.fetchExists(WORKOUT_EXERCISES, WORKOUT_EXERCISES.EXERCISE_ID.eq(id));
   }
 
   /** その人の自分専用の種目の数（100件の上限。数える前に users の行をロックしておく） */

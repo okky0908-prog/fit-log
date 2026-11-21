@@ -37,25 +37,65 @@ public class WorkoutRepository {
             .set(WORKOUTS.USER_ID, workout.userId())
             .set(WORKOUTS.PERFORMED_ON, workout.performedOn())
             .set(WORKOUTS.BODY, workout.body())
-            .set(
-                WORKOUTS.DURATION_MIN,
-                workout.durationMin() == null ? null : workout.durationMin().shortValue())
+            .set(WORKOUTS.DURATION_MIN, toShort(workout.durationMin()))
             .set(WORKOUTS.VISIBILITY, workout.visibility())
             .set(WORKOUTS.CREATED_AT, workout.createdAt())
             .set(WORKOUTS.UPDATED_AT, workout.createdAt())
             .returning(WORKOUTS.ID)
             .fetchSingle()
             .getId();
+    insertExercises(workoutId, workout.exercises());
+    return workoutId;
+  }
 
+  /**
+   * 編集の前に、見てよい記録（{@link WorkoutVisibility}）の投稿者を取る。記録の行をロックして、確かめてから書き込むまでの間に、同時の編集・削除で変わらないようにする。
+   *
+   * @return 投稿者の ID。見てはいけない・ない記録は空
+   */
+  public Optional<Long> lockVisible(long id, long me) {
+    return dsl.select(WORKOUTS.USER_ID)
+        .from(WORKOUTS)
+        .join(USERS)
+        .on(USERS.ID.eq(WORKOUTS.USER_ID))
+        .where(WORKOUTS.ID.eq(id))
+        .and(WorkoutVisibility.visibleTo(me))
+        .forUpdate()
+        .of(WORKOUTS)
+        .fetchOptional(WORKOUTS.USER_ID);
+  }
+
+  /** 記録を編集する。種目とセットは、前の行を消して入れ直す（セットは外部キーの CASCADE で一緒に消える） */
+  public void update(long id, WorkoutEdit edit) {
+    dsl.update(WORKOUTS)
+        .set(WORKOUTS.PERFORMED_ON, edit.performedOn())
+        .set(WORKOUTS.BODY, edit.body())
+        .set(WORKOUTS.DURATION_MIN, toShort(edit.durationMin()))
+        .set(WORKOUTS.VISIBILITY, edit.visibility())
+        .set(WORKOUTS.EDITED_AT, edit.editedAt())
+        .set(WORKOUTS.UPDATED_AT, edit.editedAt())
+        .where(WORKOUTS.ID.eq(id))
+        .execute();
+    dsl.deleteFrom(WORKOUT_EXERCISES).where(WORKOUT_EXERCISES.WORKOUT_ID.eq(id)).execute();
+    insertExercises(id, edit.exercises());
+  }
+
+  /** 記録を消す。種目・セットは外部キーの CASCADE で一緒に消える */
+  public void delete(long id) {
+    dsl.deleteFrom(WORKOUTS).where(WORKOUTS.ID.eq(id)).execute();
+  }
+
+  /** 種目とセットを入れる。SQL は数によらず2回（種目・セット） */
+  private void insertExercises(long workoutId, List<NewWorkout.Exercise> workoutExercises) {
     var exercises =
         dsl.insertInto(
             WORKOUT_EXERCISES,
             WORKOUT_EXERCISES.WORKOUT_ID,
             WORKOUT_EXERCISES.EXERCISE_ID,
             WORKOUT_EXERCISES.SORT_ORDER);
-    for (int i = 0; i < workout.exercises().size(); i++) {
+    for (int i = 0; i < workoutExercises.size(); i++) {
       exercises =
-          exercises.values(workoutId, workout.exercises().get(i).exerciseId(), (short) (i + 1));
+          exercises.values(workoutId, workoutExercises.get(i).exerciseId(), (short) (i + 1));
     }
     // RETURNING の行の順番は決まっていないので、並び順で ID を引けるようにする
     Map<Short, Long> idBySortOrder =
@@ -72,9 +112,9 @@ public class WorkoutRepository {
             WORKOUT_SETS.REPS,
             WORKOUT_SETS.DURATION_SEC,
             WORKOUT_SETS.DISTANCE_KM);
-    for (int i = 0; i < workout.exercises().size(); i++) {
+    for (int i = 0; i < workoutExercises.size(); i++) {
       long workoutExerciseId = idBySortOrder.get((short) (i + 1));
-      List<StoredSet> exerciseSets = workout.exercises().get(i).sets();
+      List<StoredSet> exerciseSets = workoutExercises.get(i).sets();
       for (int j = 0; j < exerciseSets.size(); j++) {
         StoredSet set = exerciseSets.get(j);
         sets =
@@ -88,7 +128,10 @@ public class WorkoutRepository {
       }
     }
     sets.execute();
-    return workoutId;
+  }
+
+  private static Short toShort(Integer value) {
+    return value == null ? null : value.shortValue();
   }
 
   /** 見てよい記録の詳細（{@link WorkoutVisibility}）。見てはいけない・ない記録は空。種目とセットも含めて1回の SQL で取る */

@@ -101,6 +101,11 @@ public final class WorkoutFixture {
               .and(EXERCISES.OWNER_ID.isNull())
               .fetchSingle()
               .value1();
+      return exercise(exerciseId, sets);
+    }
+
+    /** 種目を ID で指定して足す（自分専用の種目を使うとき） */
+    public Builder exercise(long exerciseId, List<StoredSet> sets) {
       exercises.add(new NewWorkout.Exercise(exerciseId, sets));
       return this;
     }

@@ -1,15 +1,20 @@
 package com.okimoto.fitlog.exercise.repository;
 
+import static com.okimoto.fitlog.jooq.Tables.WORKOUT_EXERCISES;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.okimoto.fitlog.exercise.calc.ExerciseRules;
 import com.okimoto.fitlog.jooq.tables.records.ExercisesRecord;
 import com.okimoto.fitlog.support.TestcontainersConfiguration;
+import com.okimoto.fitlog.support.WorkoutFixture;
 import com.okimoto.fitlog.user.repository.NewUser;
 import com.okimoto.fitlog.user.repository.UserRepository;
+import com.okimoto.fitlog.workout.repository.WorkoutRepository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import org.jooq.DSLContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +24,12 @@ import org.springframework.test.context.ActiveProfiles;
 
 /** 種目の読み書き。本物の DB で確かめる（テストごとにロールバックする） */
 @JooqTest
-@Import({TestcontainersConfiguration.class, ExerciseRepository.class, UserRepository.class})
+@Import({
+  TestcontainersConfiguration.class,
+  ExerciseRepository.class,
+  UserRepository.class,
+  WorkoutRepository.class
+})
 @ActiveProfiles("test")
 class ExerciseRepositoryTest {
 
@@ -27,14 +37,18 @@ class ExerciseRepositoryTest {
 
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private WorkoutRepository workoutRepository;
+  @Autowired private DSLContext dsl;
 
   private long me;
   private long other;
+  private WorkoutFixture workouts;
 
   @BeforeEach
   void setUp() {
     me = userRepository.insert(user("me_user")).getId();
     other = userRepository.insert(user("other_user")).getId();
+    workouts = new WorkoutFixture(dsl, workoutRepository);
   }
 
   @Test
@@ -157,6 +171,100 @@ class ExerciseRepositoryTest {
     exerciseRepository.deleteCustom(mine);
 
     assertThat(exerciseRepository.findCustom(mine, me)).isEmpty();
+  }
+
+  @Test
+  void 最近使った種目は_最後に使った記録の実施日_投稿日時の新しい順で_記録の中は種目の順() {
+    long custom = add(me, "自分の種目", "legs").getId();
+    workouts
+        .of(me)
+        .performedOn(LocalDate.of(2026, 11, 18))
+        .createdAt(at("2026-11-18T19:00"))
+        .reps("スクワット", 10, 1)
+        .reps("ベンチプレス", 10, 1)
+        .save();
+    // 同じ実施日で、あとに投稿した記録。ID の順と投稿日時の順が逆になるように、先に保存する
+    workouts
+        .of(me)
+        .performedOn(LocalDate.of(2026, 11, 20))
+        .createdAt(at("2026-11-20T20:00"))
+        .reps("ベンチプレス", 10, 1)
+        .reps("懸垂", 10, 1)
+        .save();
+    workouts
+        .of(me)
+        .performedOn(LocalDate.of(2026, 11, 20))
+        .createdAt(at("2026-11-20T10:00"))
+        .reps("デッドリフト", 5, 1)
+        .save();
+    // 投稿は一番新しいが、実施日は前
+    long withCustom =
+        workouts
+            .of(me)
+            .performedOn(LocalDate.of(2026, 11, 19))
+            .createdAt(at("2026-11-21T08:00"))
+            .reps("ランジ", 10, 1)
+            .save();
+    dsl.insertInto(WORKOUT_EXERCISES)
+        .set(WORKOUT_EXERCISES.WORKOUT_ID, withCustom)
+        .set(WORKOUT_EXERCISES.EXERCISE_ID, custom)
+        .set(WORKOUT_EXERCISES.SORT_ORDER, (short) 2)
+        .execute();
+    // 他人の記録で使った種目は入らない
+    workouts
+        .of(other)
+        .performedOn(LocalDate.of(2026, 11, 21))
+        .createdAt(at("2026-11-21T09:00"))
+        .reps("ディップス", 10, 1)
+        .save();
+
+    assertThat(names(exerciseRepository.recent(me, 10)))
+        // ベンチプレスは、最後に使った記録（11/20 20:00）の位置に1回だけ出る
+        .containsExactly("ベンチプレス", "懸垂", "デッドリフト", "ランジ", "自分の種目", "スクワット");
+  }
+
+  @Test
+  void 最近使った種目は_指定の件数まで_記録がなければ空() {
+    assertThat(exerciseRepository.recent(me, 10)).isEmpty();
+
+    WorkoutFixture.Builder workout = workouts.of(me);
+    List<String> eleven =
+        List.of(
+            "ベンチプレス",
+            "インクラインベンチプレス",
+            "ダンベルプレス",
+            "ダンベルフライ",
+            "チェストプレス",
+            "ケーブルクロスオーバー",
+            "ディップス",
+            "腕立て伏せ",
+            "デッドリフト",
+            "ベントオーバーロウ",
+            "ラットプルダウン");
+    eleven.forEach(name -> workout.reps(name, 10, 1));
+    workout.save();
+
+    assertThat(names(exerciseRepository.recent(me, 10)))
+        .containsExactlyElementsOf(eleven.subList(0, 10));
+  }
+
+  @Test
+  void 記録で使っている種目か() {
+    long used = add(me, "使っている種目", "legs").getId();
+    long unused = add(me, "使っていない種目", "legs").getId();
+    long workoutId = workouts.of(me).save();
+    dsl.insertInto(WORKOUT_EXERCISES)
+        .set(WORKOUT_EXERCISES.WORKOUT_ID, workoutId)
+        .set(WORKOUT_EXERCISES.EXERCISE_ID, used)
+        .set(WORKOUT_EXERCISES.SORT_ORDER, (short) 2)
+        .execute();
+
+    assertThat(exerciseRepository.usedInWorkouts(used)).isTrue();
+    assertThat(exerciseRepository.usedInWorkouts(unused)).isFalse();
+  }
+
+  private static OffsetDateTime at(String tokyoDateTime) {
+    return OffsetDateTime.parse(tokyoDateTime + ":00+09:00");
   }
 
   private ExercisesRecord add(long ownerId, String name, String bodyPart) {

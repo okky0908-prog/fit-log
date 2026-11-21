@@ -1,6 +1,9 @@
 package com.okimoto.fitlog.workout.repository;
 
 import static com.okimoto.fitlog.jooq.Tables.USERS;
+import static com.okimoto.fitlog.jooq.Tables.WORKOUTS;
+import static com.okimoto.fitlog.jooq.Tables.WORKOUT_EXERCISES;
+import static com.okimoto.fitlog.jooq.Tables.WORKOUT_SETS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -169,6 +172,90 @@ class WorkoutRepositoryTest {
         .containsOnlyKeys(BENCH_PRESS, PUSH_UP, mine)
         .containsEntry(PUSH_UP, "reps")
         .containsEntry(mine, "weight_reps");
+  }
+
+  @Test
+  void 編集の前に_見てよい記録の投稿者を取る_見てはいけない記録とない記録は空() {
+    long mine = save(author, "private");
+    long othersPublic = save(other, "public");
+    long othersPrivate = save(other, "private");
+
+    assertThat(workoutRepository.lockVisible(mine, author)).contains(author);
+    assertThat(workoutRepository.lockVisible(othersPublic, author)).contains(other);
+    assertThat(workoutRepository.lockVisible(othersPrivate, author)).isEmpty();
+    assertThat(workoutRepository.lockVisible(Long.MAX_VALUE, author)).isEmpty();
+  }
+
+  @Test
+  void 編集すると_項目と種目とセットが置き換わり_編集日時と更新日時が入る() {
+    long id =
+        workoutRepository.insert(
+            new NewWorkout(
+                author,
+                LocalDate.of(2026, 11, 20),
+                "前のひとこと",
+                30,
+                "public",
+                NOW,
+                List.of(
+                    exercise(BENCH_PRESS, weightReps("60.000", 10), weightReps("70.000", 8)),
+                    exercise(PUSH_UP, new StoredSet(null, 20, null, null)))));
+    long untouched = save(author, "public");
+    OffsetDateTime editedAt = NOW.plusHours(1);
+
+    workoutRepository.update(
+        id,
+        new WorkoutEdit(
+            LocalDate.of(2026, 11, 19),
+            "後のひとこと",
+            null,
+            "followers",
+            editedAt,
+            List.of(exercise(RUNNING, new StoredSet(null, null, 600, null)))));
+
+    WorkoutDetail detail = workoutRepository.findVisible(id, author).orElseThrow();
+    assertThat(detail.performedOn()).isEqualTo(LocalDate.of(2026, 11, 19));
+    assertThat(detail.body()).isEqualTo("後のひとこと");
+    assertThat(detail.durationMin()).isNull();
+    assertThat(detail.visibility()).isEqualTo("followers");
+    assertThat(detail.createdAt()).as("投稿日時は変わらない").isEqualTo(NOW);
+    assertThat(detail.editedAt()).isEqualTo(editedAt);
+    assertThat(dsl.fetchValue(WORKOUTS.UPDATED_AT, WORKOUTS.ID.eq(id))).isAtSameInstantAs(editedAt);
+    assertThat(detail.exercises())
+        .extracting(WorkoutDetail.Exercise::name)
+        .containsExactly("ランニング");
+    assertThat(detail.exercises().getFirst().sets())
+        .containsExactly(new StoredSet(null, null, 600, null));
+    // 前の種目とセットの行は残らない
+    assertThat(dsl.fetchCount(WORKOUT_EXERCISES, WORKOUT_EXERCISES.WORKOUT_ID.eq(id))).isEqualTo(1);
+    assertThat(setCount(id)).isEqualTo(1);
+    // ほかの記録は変わらない
+    WorkoutDetail other = workoutRepository.findVisible(untouched, author).orElseThrow();
+    assertThat(other.editedAt()).isNull();
+    assertThat(other.exercises()).extracting(WorkoutDetail.Exercise::name).containsExactly("腕立て伏せ");
+  }
+
+  @Test
+  void 削除すると_種目とセットも一緒に消え_ほかの記録は残る() {
+    long id = save(author, "public");
+    long kept = save(author, "public");
+
+    workoutRepository.delete(id);
+
+    assertThat(workoutRepository.findVisible(id, author)).isEmpty();
+    assertThat(dsl.fetchCount(WORKOUT_EXERCISES, WORKOUT_EXERCISES.WORKOUT_ID.eq(id))).isZero();
+    assertThat(setCount(id)).isZero();
+    assertThat(workoutRepository.findVisible(kept, author)).isPresent();
+    assertThat(setCount(kept)).isEqualTo(1);
+  }
+
+  private int setCount(long workoutId) {
+    return dsl.fetchCount(
+        WORKOUT_SETS,
+        WORKOUT_SETS.WORKOUT_EXERCISE_ID.in(
+            dsl.select(WORKOUT_EXERCISES.ID)
+                .from(WORKOUT_EXERCISES)
+                .where(WORKOUT_EXERCISES.WORKOUT_ID.eq(workoutId))));
   }
 
   private long save(long userId, String visibility) {

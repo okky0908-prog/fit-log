@@ -49,6 +49,8 @@ public enum ErrorCode {
   EXERCISE_NAME_TAKEN(HttpStatus.CONFLICT, "同じ名前の種目があります"),
   /** 自分専用の種目が100件ある */
   EXERCISE_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "自分専用の種目は100件まで追加できます"),
+  /** 記録で使っている自分専用の種目を消そうとした（文言は docs/screens.md S-13）。目標で使っている種目は、目標を作るときに足す */
+  EXERCISE_IN_USE(HttpStatus.CONFLICT, "記録で使っている種目は削除できません"),
   PAYLOAD_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "送信するデータが大きすぎます"),
   UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "リクエストの形式（Content-Type）に対応していません"),
 
