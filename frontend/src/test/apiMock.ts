@@ -19,5 +19,7 @@ export async function mockApiClient(importOriginal: () => Promise<typeof api>) {
     verifyEmail: vi.fn<typeof actual.verifyEmail>(),
     resendVerificationEmail: vi.fn<typeof actual.resendVerificationEmail>(),
     setUnauthorizedHandler: vi.fn<typeof actual.setUnauthorizedHandler>(),
+    fetchWorkout: vi.fn<typeof actual.fetchWorkout>(),
+    deleteWorkout: vi.fn<typeof actual.deleteWorkout>(),
   }
 }

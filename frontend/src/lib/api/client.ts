@@ -7,6 +7,7 @@ import type {
   Me,
   SignupInput,
   VerifyEmailResult,
+  Workout,
 } from './types'
 
 /*
@@ -199,4 +200,16 @@ export function verifyEmail(token: string): Promise<VerifyEmailResult> {
 /** A-07 確認メールの再送 */
 export function resendVerificationEmail(): Promise<void> {
   return apiFetch('/api/account/email-verification', { method: 'POST', auth: true })
+}
+
+// ===== 記録（A-21・A-23） =====
+
+/** A-21 記録の詳細。見てはいけない・ない記録は 404（WORKOUT_NOT_FOUND） */
+export function fetchWorkout(id: number): Promise<Workout> {
+  return apiFetch(`/api/workouts/${id}`, { auth: true })
+}
+
+/** A-23 記録の削除。他人の記録は 403（FORBIDDEN） */
+export function deleteWorkout(id: number): Promise<void> {
+  return apiFetch(`/api/workouts/${id}`, { method: 'DELETE', auth: true })
 }
