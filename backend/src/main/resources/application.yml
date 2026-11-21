@@ -15,6 +15,12 @@ spring:
   mail:
     host: ${MAIL_HOST:localhost}
     port: ${MAIL_PORT:1025}
+  # multipart の大きさの上限。リクエスト全体は 10MB まで（超えると 413）。1つのファイルの上限はリクエスト全体と同じにして、
+  # 1枚の画像の 2MB の上限はアプリで確かめる（どの画像が大きすぎるかを 400 の errors で返すため。docs/api.md A-20）
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
   threads:
     virtual:
       # 仮想スレッドを使う（docs/tech-stack.md 3.1）
@@ -34,6 +40,12 @@ app:
     reuse-grace: 10s
   # 毎日の掃除（期限切れのトークン・古いメールの送信の記録を消す）の時刻（cron。秒 分 時 日 月 曜日。日本時間）。毎日 4:00
   cleanup-cron: "0 0 4 * * *"
+  # 画像の保存先（S3）。既定値は手元の開発の LocalStack（docker-compose）に合わせてある。
+  # 本番（AWS の S3）では S3_ENDPOINT を空にする。空なら IAM ロールの権限で AWS の S3 に接続する
+  storage:
+    bucket: ${S3_BUCKET:fitlog-images}
+    region: ${S3_REGION:ap-northeast-1}
+    endpoint: ${S3_ENDPOINT:http://localhost:4566}
   # メールアドレスの確認（docs/features.md F-05）
   email-verification:
     expiration: 24h
@@ -56,6 +68,12 @@ app:
   password-hashing:
     max-concurrent: 1
     max-wait: 1s
+
+server:
+  tomcat:
+    # 上限（10MB）を超えたリクエストの残りを読み捨てる量。既定の 2MB では、読み捨てきれずに接続を切り、
+    # 画面が 413 の応答（PAYLOAD_TOO_LARGE）を受け取れず通信のエラーになる。画面から送れる大きさ（画像4枚×2MB＋記録）を少し超えた分まで読み捨てて、413 を返す
+    max-swallow-size: 20MB
 
 logging:
   level:

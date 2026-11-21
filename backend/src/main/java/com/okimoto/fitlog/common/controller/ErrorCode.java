@@ -64,6 +64,8 @@ public enum ErrorCode {
   // ===== 500 / 503 =====
   /** 想定していないエラー。内部の情報は利用者に出さず、ログにだけ残す */
   INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "サーバーでエラーが発生しました。時間をおいてもう一度お試しください"),
+  /** 画像を S3 に保存できなかった。記録も保存しない（保存した画像は消す） */
+  IMAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "画像を保存できませんでした。時間をおいてもう一度お試しください"),
   /** DB につながらないなど */
   SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "ただいまサービスを利用できません。時間をおいてもう一度お試しください"),
   /** ログイン・新規登録が集中して、パスワードの照合の順番を待ちきれなかった（ほかの API の CPU を残すため） */

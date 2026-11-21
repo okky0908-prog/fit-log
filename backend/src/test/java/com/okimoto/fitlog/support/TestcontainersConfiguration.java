@@ -1,16 +1,19 @@
 package com.okimoto.fitlog.support;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.DynamicPropertyRegistrar;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.images.builder.ImageFromDockerfile;
+import org.testcontainers.localstack.LocalStackContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * テスト用の PostgreSQL（pg_bigm 入りの自作イメージ）と Mailpit（メール）を、Testcontainers の使い捨てのコンテナで立ち上げる。
+ * テスト用の PostgreSQL（pg_bigm 入りの自作イメージ）・Mailpit（メール）・LocalStack（S3）を、Testcontainers の使い捨てのコンテナで立ち上げる。
  *
  * <p>{@code @SpringBootTest} のテストは、すべて {@code @Import(TestcontainersConfiguration.class)}
  * を付ける（CLAUDE.md）。付け忘れると、application-test.yml の「つながらない宛先」に接続しようとして失敗する（開発用の DB には書き込まない）。
@@ -21,7 +24,8 @@ import org.testcontainers.utility.DockerImageName;
  *       8.1）。テストが終わると Testcontainers が自動で消す
  *   <li>H2 は使わない。PostgreSQL 特有の書き方（pg_bigm・NORMALIZE など）を本番と同じ動きで確かめるため
  *   <li>Mailpit は、送ったメールを API で確かめるために使う（{@link MailpitClient}）
- *   <li>LocalStack は、画像の機能を作るときに足す（docs/test-plan.md 8.1）
+ *   <li>LocalStack は、記録の画像の保存先（S3）。版は docker-compose と同じ 4.14.0（それより新しい版は、起動に LocalStack
+ *       のアカウントの認証トークンが要る）。バケットは起動したときに作る
  * </ul>
  */
 @TestConfiguration(proxyBeanMethods = false)
@@ -39,9 +43,30 @@ public class TestcontainersConfiguration {
       new GenericContainer<>(DockerImageName.parse("axllent/mailpit:v1.33.1"))
           .withExposedPorts(MAILPIT_SMTP_PORT, MAILPIT_API_PORT);
 
+  /** 画像を保存するバケット（application.yml の既定値と分けて、手元の開発のバケットと取り違えないようにする） */
+  public static final String BUCKET = "fitlog-test-images";
+
+  private static final LocalStackContainer LOCALSTACK =
+      new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.14.0"))
+          .withServices("s3")
+          // 署名付き URL の署名と期限を確かめる（LocalStack の既定では確かめない）
+          .withEnv("S3_SKIP_SIGNATURE_VALIDATION", "0");
+
   static {
     POSTGRES.start();
     MAILPIT.start();
+    LOCALSTACK.start();
+    try {
+      var result = LOCALSTACK.execInContainer("awslocal", "s3", "mb", "s3://" + BUCKET);
+      if (result.getExitCode() != 0) {
+        throw new IllegalStateException("LocalStack にバケットを作れませんでした: " + result.getStderr());
+      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException(e);
+    }
   }
 
   /** Mailpit の API の URL（http://ホスト:ポート） */
@@ -66,6 +91,9 @@ public class TestcontainersConfiguration {
       registry.add("spring.datasource.password", POSTGRES::getPassword);
       registry.add("spring.mail.host", MAILPIT::getHost);
       registry.add("spring.mail.port", () -> MAILPIT.getMappedPort(MAILPIT_SMTP_PORT));
+      registry.add("app.storage.endpoint", () -> LOCALSTACK.getEndpoint().toString());
+      registry.add("app.storage.region", LOCALSTACK::getRegion);
+      registry.add("app.storage.bucket", () -> BUCKET);
     };
   }
 }

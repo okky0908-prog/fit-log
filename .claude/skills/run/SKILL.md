@@ -13,9 +13,10 @@ description: FIT LOG（Spring Boot バックエンド + Vite/React フロント�
 | バックエンド（Spring Boot） | `8080` | `application.yml` に `server.port` の指定なし（Spring Boot の既定値） |
 | フロントエンド（Vite） | `5173` | `vite.config.ts` に `server.port` の指定なし（Vite の既定値） |
 | Mailpit（メールの確認） | SMTP `1025`・画面 `8025` | Mailpit の既定値（`docker-compose.yml`） |
+| LocalStack（S3 の代わり。記録の画像） | `4566` | LocalStack の既定値（`docker-compose.yml`）。バケット `fitlog-images` は起動時に `localstack/init/ready.d` のスクリプトが作る |
 
 - フロントエンドは `/api` を Vite のプロキシでバックエンド（`localhost:8080`）に中継する
-- LocalStack（4566）は、使う機能を作るときに docker-compose に足す（docs/test-plan.md 8.1）
+- LocalStack は無料版なのでデータを保存しない。コンテナを作り直すと画像は消える（DB の記録は残るので、その画像は表示されなくなる）
 
 ## 起動する前に：前回の SNS アプリを止める
 
@@ -32,8 +33,8 @@ docker ps --format '{{.Names}}\t{{.Ports}}'          # sns-app-* が動いてい
 # 0. 初回だけ：.env を用意し、JWT_SECRET に openssl rand -base64 48 の結果を入れる（空だとバックエンドが起動しない）
 cp .env.example .env
 
-# 1. DB とメール（初回は db/Dockerfile のビルドで数分かかる）
-docker compose up -d --wait postgres mailpit
+# 1. DB・メール・S3（初回は db/Dockerfile のビルドで数分かかる）
+docker compose up -d --wait postgres mailpit localstack
 
 # 2. バックエンド（リポジトリ直下から）。Java 25 は Homebrew の openjdk@25（keg-only なので JAVA_HOME を指定する）
 cd backend && JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradlew bootRun
@@ -43,7 +44,7 @@ cd frontend && npm run dev
 ```
 
 - バックエンドは起動のときに Flyway でテーブルを作る（`backend/src/main/resources/db/migration`）
-- DB を作り直したいとき：`docker compose down -v && docker compose up -d --wait postgres mailpit`（**データがすべて消える**）
+- DB を作り直したいとき：`docker compose down -v && docker compose up -d --wait postgres mailpit localstack`（**データがすべて消える**）
 - 新規登録・確認メールの再送で送ったメールは、Mailpit の画面（http://localhost:8025）で見る。リンクはフロントエンドの `/verify-email?token=…`
 
 ## ポートが競合したとき（必ず守る）

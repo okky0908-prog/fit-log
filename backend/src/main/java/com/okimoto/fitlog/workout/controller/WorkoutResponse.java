@@ -7,14 +7,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * 記録の詳細（docs/api.md「Workout」）。他人にも返す形なので、項目を足すときは本人以外に出してよいかを考える（docs/test-plan.md 4.2
  * の許可リストのテストが落ちる）。
  *
- * <p>まだ作っていない機能の項目は、決まった値を返す：{@code images} は空（8本目）、{@code likeCount}・{@code likedByMe}・{@code
- * commentCount} は 0・false（13本目）、{@code personalBest} は false（段階 2）、{@code author.iconUrl} は
- * null（プロフィールの編集）
+ * <p>まだ作っていない機能の項目は、決まった値を返す：{@code likeCount}・{@code likedByMe}・{@code commentCount} は
+ * 0・false（13本目）、{@code personalBest} は false（段階 2）、{@code author.iconUrl} は null（プロフィールの編集）
  *
  * @param id 記録
  * @param author 投稿者
@@ -71,7 +71,10 @@ public record WorkoutResponse(
   /** 画像 */
   public record Image(long id, String url, int sortOrder) {}
 
-  static WorkoutResponse from(WorkoutDetail detail, long me) {
+  /**
+   * @param urlOf 画像の S3 のキーから、署名付き URL を作る（閲覧を許可したあとに呼ぶ）
+   */
+  static WorkoutResponse from(WorkoutDetail detail, long me, Function<String, String> urlOf) {
     return new WorkoutResponse(
         detail.id(),
         new Author(detail.username(), detail.displayName(), null, detail.authorPrivate()),
@@ -82,7 +85,9 @@ public record WorkoutResponse(
         detail.durationMin() == null ? null : detail.durationMin().intValue(),
         detail.visibility(),
         detail.exercises().stream().map(WorkoutResponse::exercise).toList(),
-        List.of(),
+        detail.images().stream()
+            .map(image -> new Image(image.id(), urlOf.apply(image.imageKey()), image.sortOrder()))
+            .toList(),
         0,
         false,
         0,

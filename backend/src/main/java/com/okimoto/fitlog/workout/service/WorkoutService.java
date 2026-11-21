@@ -3,6 +3,8 @@ package com.okimoto.fitlog.workout.service;
 import com.okimoto.fitlog.common.controller.ApiError.FieldError;
 import com.okimoto.fitlog.common.controller.ApiException;
 import com.okimoto.fitlog.common.controller.ErrorCode;
+import com.okimoto.fitlog.image.calc.ImageType;
+import com.okimoto.fitlog.image.service.ImageStorage;
 import com.okimoto.fitlog.user.repository.UserRepository;
 import com.okimoto.fitlog.workout.calc.SetRules;
 import com.okimoto.fitlog.workout.calc.WorkoutRules;
@@ -12,6 +14,7 @@ import com.okimoto.fitlog.workout.repository.WorkoutEdit;
 import com.okimoto.fitlog.workout.repository.WorkoutRepository;
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,30 +26,47 @@ public class WorkoutService {
   private final WorkoutRepository workoutRepository;
   private final WorkoutInputValidator validator;
   private final UserRepository userRepository;
+  private final ImageStorage imageStorage;
   private final Clock clock;
 
   public WorkoutService(
       WorkoutRepository workoutRepository,
       WorkoutInputValidator validator,
       UserRepository userRepository,
+      ImageStorage imageStorage,
       Clock clock) {
     this.workoutRepository = workoutRepository;
     this.validator = validator;
     this.userRepository = userRepository;
+    this.imageStorage = imageStorage;
     this.clock = clock;
   }
 
   /**
-   * A-20 記録の作成。入力のエラーはまとめて 400 で返す。
+   * A-20 記録の作成。入力のエラーは、画像のエラーも含めてまとめて 400 で返す。
    *
-   * <p>画像（8本目）・ハッシュタグの保存（段階 4）・確定後の目標の判定（段階 3）は、それぞれを作るときに足す
+   * <p>画像は S3 に保存してから DB に保存する。DB の保存が取り消されたら、保存した画像は確定後に消える（{@code ImageCleanupListener}）。S3
+   * に保存できなければ 500（IMAGE_UPLOAD_FAILED）で、記録も作らない
    *
+   * <p>ハッシュタグの保存（段階 4）・確定後の目標の判定（段階 3）は、それぞれを作るときに足す
+   *
+   * @param images 画像の中身（選んだ順）
    * @return 作った記録の詳細
    */
   @Transactional
-  public WorkoutDetail create(long me, WorkoutInput input) {
+  public WorkoutDetail create(long me, WorkoutInput input, List<byte[]> images) {
     lockUser(me);
-    validate(me, input);
+    List<FieldError> errors = new ArrayList<>(validator.validate(me, input));
+    errors.addAll(validator.validateImages(images));
+    if (!errors.isEmpty()) {
+      throw new ApiException(ErrorCode.VALIDATION_FAILED, errors);
+    }
+    List<String> imageKeys =
+        images.stream()
+            .map(bytes ->
+                imageStorage.storeWorkoutImage(bytes, ImageType.detect(bytes).orElseThrow()))
+            .toList();
+    OffsetDateTime now = OffsetDateTime.now(clock);
     long id =
         workoutRepository.insert(
             new NewWorkout(
@@ -55,8 +75,9 @@ public class WorkoutService {
                 WorkoutRules.normalizeBody(input.body()),
                 durationMin(input),
                 input.visibility(),
-                OffsetDateTime.now(clock),
+                now,
                 exercises(input)));
+    workoutRepository.insertImages(id, imageKeys, now);
     return find(me, id);
   }
 

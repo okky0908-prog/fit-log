@@ -6,6 +6,7 @@ import static com.okimoto.fitlog.jooq.Tables.WORKOUT_EXERCISES;
 import static com.okimoto.fitlog.jooq.Tables.WORKOUT_SETS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.okimoto.fitlog.exercise.calc.ExerciseRules;
 import com.okimoto.fitlog.exercise.repository.ExerciseRepository;
@@ -105,6 +106,43 @@ class WorkoutRepositoryTest {
         .containsExactly(new StoredSet(null, null, 1800, new BigDecimal("5.000")));
     assertThat(detail.exercises().get(3).sets())
         .containsExactly(new StoredSet(null, 20, null, null));
+  }
+
+  @Test
+  void 画像のキーを並び順のとおりに保存し_詳細で並び順に取り出せる() {
+    long id = save(author, "public");
+    long other = save(author, "public");
+    workoutRepository.insertImages(other, List.of("workouts/2026/11/other.jpg"), NOW);
+
+    workoutRepository.insertImages(
+        id,
+        List.of("workouts/2026/11/c.webp", "workouts/2026/11/a.jpg", "workouts/2026/11/b.png"),
+        NOW);
+
+    assertThat(workoutRepository.findVisible(id, author).orElseThrow().images())
+        .extracting(WorkoutDetail.Image::imageKey, WorkoutDetail.Image::sortOrder)
+        .containsExactly(
+            tuple("workouts/2026/11/c.webp", (short) 1),
+            tuple("workouts/2026/11/a.jpg", (short) 2),
+            tuple("workouts/2026/11/b.png", (short) 3));
+  }
+
+  @Test
+  void 画像がなければ空で_画像を保存しなくてもよい() {
+    long id = save(author, "public");
+
+    workoutRepository.insertImages(id, List.of(), NOW);
+
+    assertThat(workoutRepository.findVisible(id, author).orElseThrow().images()).isEmpty();
+  }
+
+  @Test
+  void 画像は1つの記録に4枚まで_DBでも止める() {
+    long id = save(author, "public");
+    List<String> five = List.of("1.jpg", "2.jpg", "3.jpg", "4.jpg", "5.jpg");
+
+    assertThatThrownBy(() -> workoutRepository.insertImages(id, five, NOW))
+        .isInstanceOf(DataIntegrityViolationException.class);
   }
 
   @Test

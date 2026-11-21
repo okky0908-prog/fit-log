@@ -125,7 +125,7 @@ npm run build           # 型チェックとビルド
 
 ```bash
 cp .env.example .env                    # 初回だけ。JWT_SECRET に openssl rand -base64 48 の結果を入れる
-docker compose up -d --wait postgres mailpit   # DB（pg_bigm 入り。初回はイメージのビルドで数分かかる）とメールの確認
+docker compose up -d --wait postgres mailpit localstack   # DB（pg_bigm 入り。初回はイメージのビルドで数分かかる）・メールの確認・S3 の代わり
 
 # バックエンド（http://localhost:8080。起動のときに Flyway でテーブルを作る）
 cd backend && JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradlew bootRun
@@ -135,7 +135,7 @@ cd frontend && npm ci && npm run dev
 ```
 
 - 送ったメール（新規登録の確認メールなど）は、Mailpit の画面 http://localhost:8025 で見る
-- ポートは固定（PostgreSQL 5432・Mailpit 1025／8025・バックエンド 8080・フロントエンド 5173）。使われていたら、別のポートに逃がさず、使っているプロセスを止める（[CLAUDE.md](CLAUDE.md)）
+- ポートは固定（PostgreSQL 5432・Mailpit 1025／8025・LocalStack 4566・バックエンド 8080・フロントエンド 5173）。使われていたら、別のポートに逃がさず、使っているプロセスを止める（[CLAUDE.md](CLAUDE.md)）
 - 詳しい手順と、ポートが競合したときの対応は `.claude/skills/run/SKILL.md`
 - DB を作り直すとき：`docker compose down -v`（データがすべて消える）
 
@@ -160,7 +160,8 @@ frontend/                    React・TypeScript・Vite
   src/test/                  テストの共通の組み立て（偽物の API・アプリの描画）
   src/test/                  テストの共通の準備（setup.ts）・層のフォルダーのテスト
 db/Dockerfile                pg_bigm 入りの PostgreSQL 17（テストと docker-compose で共通）
-docker-compose.yml           手元の開発の DB・メール（Mailpit）
+docker-compose.yml           手元の開発の DB・メール（Mailpit）・S3 の代わり（LocalStack）
+localstack/init/ready.d/     LocalStack の起動時に画像のバケットを作るスクリプト
 docs/                        設計のドキュメント
 mockup/                      モックアップ（本実装では直さない参考資料）
 ```

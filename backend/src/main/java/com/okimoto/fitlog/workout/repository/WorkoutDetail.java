@@ -20,6 +20,7 @@ import java.util.List;
  * @param durationMin トレーニング時間（分）。なければ null
  * @param visibility 公開範囲
  * @param exercises 種目とセット（並び順のとおり）
+ * @param images 画像（並び順のとおり）
  */
 public record WorkoutDetail(
     long id,
@@ -33,7 +34,8 @@ public record WorkoutDetail(
     String body,
     Short durationMin,
     String visibility,
-    List<Exercise> exercises) {
+    List<Exercise> exercises,
+    List<Image> images) {
 
   /**
    * 記録の種目。
@@ -52,4 +54,13 @@ public record WorkoutDetail(
       String recordType,
       boolean isRunning,
       List<StoredSet> sets) {}
+
+  /**
+   * 記録の画像。
+   *
+   * @param id 画像（編集で残す画像を指定するときに使う）
+   * @param imageKey S3 のキー
+   * @param sortOrder 表示順（1〜4）
+   */
+  public record Image(long id, String imageKey, short sortOrder) {}
 }

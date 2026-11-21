@@ -397,6 +397,8 @@ class WorkoutIntegrationTest {
               .weightReps("ベンチプレス", 60, 10, 1)
               .timeDistance("ランニング", 1800, 5.0)
               .save();
+      workoutRepository.insertImages(
+          id, List.of("workouts/2026/11/allowlist.jpg"), OffsetDateTime.now(clock));
 
       String body = detail(accounts.signup(), id).andReturn().getResponse().getContentAsString();
 
@@ -428,6 +430,9 @@ class WorkoutIntegrationTest {
               "exercises[].sets[].distanceKm",
               "exercises[].sets[].personalBest",
               "images",
+              "images[].id",
+              "images[].url",
+              "images[].sortOrder",
               "likeCount",
               "likedByMe",
               "commentCount",

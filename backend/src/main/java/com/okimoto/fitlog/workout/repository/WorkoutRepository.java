@@ -4,11 +4,13 @@ import static com.okimoto.fitlog.jooq.Tables.EXERCISES;
 import static com.okimoto.fitlog.jooq.Tables.USERS;
 import static com.okimoto.fitlog.jooq.Tables.WORKOUTS;
 import static com.okimoto.fitlog.jooq.Tables.WORKOUT_EXERCISES;
+import static com.okimoto.fitlog.jooq.Tables.WORKOUT_IMAGES;
 import static com.okimoto.fitlog.jooq.Tables.WORKOUT_SETS;
 import static org.jooq.impl.DSL.multiset;
 import static org.jooq.impl.DSL.select;
 
 import com.okimoto.fitlog.workout.calc.StoredSet;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,6 +48,21 @@ public class WorkoutRepository {
             .getId();
     insertExercises(workoutId, workout.exercises());
     return workoutId;
+  }
+
+  /** 記録の画像（S3 のキー）を、並び順のとおりに保存する（1から番号を振る）。SQL は枚数によらず1回。画像がなければ、jOOQ は SQL を実行しない */
+  public void insertImages(long workoutId, List<String> imageKeys, OffsetDateTime createdAt) {
+    var insert =
+        dsl.insertInto(
+            WORKOUT_IMAGES,
+            WORKOUT_IMAGES.WORKOUT_ID,
+            WORKOUT_IMAGES.IMAGE_KEY,
+            WORKOUT_IMAGES.SORT_ORDER,
+            WORKOUT_IMAGES.CREATED_AT);
+    for (int i = 0; i < imageKeys.size(); i++) {
+      insert = insert.values(workoutId, imageKeys.get(i), (short) (i + 1), createdAt);
+    }
+    insert.execute();
   }
 
   /**
@@ -172,7 +189,13 @@ public class WorkoutRepository {
                         .on(EXERCISES.ID.eq(WORKOUT_EXERCISES.EXERCISE_ID))
                         .where(WORKOUT_EXERCISES.WORKOUT_ID.eq(WORKOUTS.ID))
                         .orderBy(WORKOUT_EXERCISES.SORT_ORDER))
-                .convertFrom(r -> r.map(Records.mapping(WorkoutDetail.Exercise::new))))
+                .convertFrom(r -> r.map(Records.mapping(WorkoutDetail.Exercise::new))),
+            multiset(
+                    select(WORKOUT_IMAGES.ID, WORKOUT_IMAGES.IMAGE_KEY, WORKOUT_IMAGES.SORT_ORDER)
+                        .from(WORKOUT_IMAGES)
+                        .where(WORKOUT_IMAGES.WORKOUT_ID.eq(WORKOUTS.ID))
+                        .orderBy(WORKOUT_IMAGES.SORT_ORDER))
+                .convertFrom(r -> r.map(Records.mapping(WorkoutDetail.Image::new))))
         .from(WORKOUTS)
         .join(USERS)
         .on(USERS.ID.eq(WORKOUTS.USER_ID))

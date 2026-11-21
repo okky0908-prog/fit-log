@@ -10,6 +10,9 @@ spring:
     host: testcontainers-not-imported.invalid
 
 app:
+  # 画像も同じ（手元の LocalStack に保存しない）
+  storage:
+    endpoint: http://testcontainers-not-imported.invalid:4566
   jwt:
     # テスト用の署名の鍵（32バイト以上）。本物の鍵は .env か環境変数の JWT_SECRET で渡す
     secret: test-secret-for-jwt-signing-0123456789abcdef
