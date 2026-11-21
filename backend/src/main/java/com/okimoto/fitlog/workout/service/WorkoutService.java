@@ -15,7 +15,9 @@ import com.okimoto.fitlog.workout.repository.WorkoutRepository;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,15 +59,9 @@ public class WorkoutService {
   public WorkoutDetail create(long me, WorkoutInput input, List<byte[]> images) {
     lockUser(me);
     List<FieldError> errors = new ArrayList<>(validator.validate(me, input));
-    errors.addAll(validator.validateImages(images));
-    if (!errors.isEmpty()) {
-      throw new ApiException(ErrorCode.VALIDATION_FAILED, errors);
-    }
-    List<String> imageKeys =
-        images.stream()
-            .map(bytes ->
-                imageStorage.storeWorkoutImage(bytes, ImageType.detect(bytes).orElseThrow()))
-            .toList();
+    errors.addAll(validator.validateImages(images, 0));
+    throwIfAny(errors);
+    List<String> imageKeys = store(images);
     OffsetDateTime now = OffsetDateTime.now(clock);
     long id =
         workoutRepository.insert(
@@ -94,13 +90,27 @@ public class WorkoutService {
    *
    * <p>確かめる順番：記録がない・見てはいけない（404）→ 他人の記録（403）→ 入力のチェック（400）。他人の記録は、入力を直しても編集できないので先に返す
    *
+   * <p>画像は、残す画像（{@code keepImageIds} の順）のあとに新しい画像を並べる。外した画像は、保存の確定後に S3 から消す（取り消されたら消さない）
+   *
+   * @param images 新しい画像の中身（選んだ順）
    * @return 編集したあとの記録の詳細
    */
   @Transactional
-  public WorkoutDetail update(long me, long id, WorkoutInput input) {
+  public WorkoutDetail update(long me, long id, WorkoutInput input, List<byte[]> images) {
     lockUser(me);
     requireOwn(me, id);
-    validate(me, input);
+    List<WorkoutDetail.Image> current = workoutRepository.findImages(id);
+    List<Long> keepIds = input.keepImageIds() == null ? List.of() : input.keepImageIds();
+    List<FieldError> errors = new ArrayList<>(validator.validate(me, input));
+    errors.addAll(validator.validateKeepImageIds(input.keepImageIds(), current));
+    errors.addAll(validator.validateImages(images, keepIds.size()));
+    throwIfAny(errors);
+
+    Map<Long, String> keyById = new HashMap<>();
+    current.forEach(image -> keyById.put(image.id(), image.imageKey()));
+    List<String> imageKeys = new ArrayList<>(keepIds.stream().map(keyById::get).toList());
+    imageKeys.addAll(store(images));
+    OffsetDateTime now = OffsetDateTime.now(clock);
     workoutRepository.update(
         id,
         new WorkoutEdit(
@@ -108,16 +118,23 @@ public class WorkoutService {
             WorkoutRules.normalizeBody(input.body()),
             durationMin(input),
             input.visibility(),
-            OffsetDateTime.now(clock),
+            now,
             exercises(input)));
+    workoutRepository.replaceImages(id, imageKeys, now);
+    current.stream()
+        .map(WorkoutDetail.Image::imageKey)
+        .filter(key -> !imageKeys.contains(key))
+        .forEach(imageStorage::discardAfterCommit);
     return find(me, id);
   }
 
-  /** A-23 記録の削除。記録がない・見てはいけないなら 404、他人の記録なら 403 */
+  /** A-23 記録の削除。記録がない・見てはいけないなら 404、他人の記録なら 403。画像は確定後に S3 から消す */
   @Transactional
   public void delete(long me, long id) {
     requireOwn(me, id);
+    List<WorkoutDetail.Image> images = workoutRepository.findImages(id);
     workoutRepository.delete(id);
+    images.forEach(image -> imageStorage.discardAfterCommit(image.imageKey()));
   }
 
   /**
@@ -141,11 +158,17 @@ public class WorkoutService {
     }
   }
 
-  private void validate(long me, WorkoutInput input) {
-    List<FieldError> errors = validator.validate(me, input);
+  private static void throwIfAny(List<FieldError> errors) {
     if (!errors.isEmpty()) {
       throw new ApiException(ErrorCode.VALIDATION_FAILED, errors);
     }
+  }
+
+  /** 新しい画像を S3 に保存し、キーを選んだ順に返す（形式は入力のチェックで確かめてある） */
+  private List<String> store(List<byte[]> images) {
+    return images.stream()
+        .map(bytes -> imageStorage.storeWorkoutImage(bytes, ImageType.detect(bytes).orElseThrow()))
+        .toList();
   }
 
   private static Integer durationMin(WorkoutInput input) {

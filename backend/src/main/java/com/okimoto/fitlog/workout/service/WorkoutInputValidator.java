@@ -7,9 +7,11 @@ import com.okimoto.fitlog.image.calc.ImageRules;
 import com.okimoto.fitlog.workout.calc.SetInput;
 import com.okimoto.fitlog.workout.calc.SetRules;
 import com.okimoto.fitlog.workout.calc.WorkoutRules;
+import com.okimoto.fitlog.workout.repository.WorkoutDetail;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -40,14 +42,15 @@ public class WorkoutInputValidator {
   }
 
   /**
-   * 画像のチェック（docs/api.md A-20）。5枚以上なら {@code images}、1枚ごとの違反（大きさ・形式・位置情報）は {@code images[0]}
-   * の形で返す。枚数の違反のときは、1枚ごとのチェックをしない
+   * 新しい画像のチェック（docs/api.md A-20・A-22）。残す画像と合わせて5枚以上なら {@code images}、1枚ごとの違反（大きさ・形式・位置情報）は {@code
+   * images[0]} の形で返す。枚数の違反のときは、1枚ごとのチェックをしない
    *
-   * @param images 画像の中身（選んだ順）
+   * @param images 新しい画像の中身（選んだ順）
+   * @param keptCount 編集で残す画像の数（作成では 0）
    * @return 項目ごとのエラー。なければ空
    */
-  public List<FieldError> validateImages(List<byte[]> images) {
-    if (images.size() > ImageRules.MAX_COUNT) {
+  public List<FieldError> validateImages(List<byte[]> images, int keptCount) {
+    if (keptCount + images.size() > ImageRules.MAX_COUNT) {
       return List.of(new FieldError("images", ImageRules.COUNT_MESSAGE));
     }
     List<FieldError> errors = new ArrayList<>();
@@ -55,6 +58,33 @@ public class WorkoutInputValidator {
       String field = "images[" + i + "]";
       ImageRules.problem(images.get(i))
           .ifPresent(message -> errors.add(new FieldError(field, message)));
+    }
+    return errors;
+  }
+
+  /**
+   * 編集で残す画像の指定のチェック（docs/api.md A-22）。指定がなければ {@code keepImageIds}（指定し忘れて画像がすべて消えないように）。その記録の画像でない
+   * ID・2回目に出てきた ID は {@code keepImageIds[1]} の形で返す
+   *
+   * @param current その記録の今の画像
+   */
+  public List<FieldError> validateKeepImageIds(
+      List<Long> keepImageIds, List<WorkoutDetail.Image> current) {
+    if (keepImageIds == null) {
+      return List.of(new FieldError("keepImageIds", "残す画像を指定してください"));
+    }
+    Set<Long> currentIds = new HashSet<>();
+    current.forEach(image -> currentIds.add(image.id()));
+    Set<Long> seen = new HashSet<>();
+    List<FieldError> errors = new ArrayList<>();
+    for (int i = 0; i < keepImageIds.size(); i++) {
+      Long id = keepImageIds.get(i);
+      String field = "keepImageIds[" + i + "]";
+      if (!currentIds.contains(id)) {
+        errors.add(new FieldError(field, "画像が見つかりません"));
+      } else if (!seen.add(id)) {
+        errors.add(new FieldError(field, "同じ画像を2回指定しています"));
+      }
     }
     return errors;
   }

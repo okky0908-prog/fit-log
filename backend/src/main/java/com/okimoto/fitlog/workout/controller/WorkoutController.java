@@ -56,13 +56,16 @@ public class WorkoutController {
     return response(workoutService.find(user.id(), workoutId), user.id());
   }
 
-  /** A-22 記録の編集。作成と同じ形（multipart）。残す画像（{@code keepImageIds}）・新しい画像は、画像の PR で足す */
+  /**
+   * A-22 記録の編集。作成と同じ形（multipart）。{@code data} に残す画像（{@code keepImageIds}）、{@code images} に新しい画像を入れる
+   */
   @PutMapping(path = "/{workoutId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public WorkoutResponse update(
       @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable long workoutId,
-      @RequestPart("data") WorkoutInput data) {
-    return response(workoutService.update(user.id(), workoutId, data), user.id());
+      @RequestPart("data") WorkoutInput data,
+      @RequestPart(name = "images", required = false) List<MultipartFile> images) {
+    return response(workoutService.update(user.id(), workoutId, data, contents(images)), user.id());
   }
 
   /** A-23 記録の削除 */

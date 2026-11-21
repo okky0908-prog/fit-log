@@ -65,6 +65,11 @@ public class ImageStorage {
     return key;
   }
 
+  /** 使わなくなった画像（編集で外した・記録を削除した）を、保存の確定後に消す。トランザクションの中で呼ぶ。取り消されたら消さない */
+  public void discardAfterCommit(String key) {
+    events.publishEvent(new ImageDiscardedEvent(key));
+  }
+
   /** 画像を消す。失敗しても、もとの操作は成功しているので、ログに残すだけにする */
   public void deleteQuietly(String key) {
     try {

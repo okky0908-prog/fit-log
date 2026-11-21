@@ -65,6 +65,25 @@ public class WorkoutRepository {
     insert.execute();
   }
 
+  /** 記録の画像（並び順のとおり）。編集で残す画像を確かめるときと、削除・編集で使わなくなった画像を S3 から消すときに使う */
+  public List<WorkoutDetail.Image> findImages(long workoutId) {
+    return dsl.select(WORKOUT_IMAGES.ID, WORKOUT_IMAGES.IMAGE_KEY, WORKOUT_IMAGES.SORT_ORDER)
+        .from(WORKOUT_IMAGES)
+        .where(WORKOUT_IMAGES.WORKOUT_ID.eq(workoutId))
+        .orderBy(WORKOUT_IMAGES.SORT_ORDER)
+        .fetch(Records.mapping(WorkoutDetail.Image::new));
+  }
+
+  /**
+   * 記録の画像を、渡したキーの並びで置き換える（編集。A-22）。
+   *
+   * <p>行を消してから入れ直すので、残した画像も ID が変わる。行をそのまま並べ替えると、途中で並び順の一意制約（workout_id, sort_order）に当たるため
+   */
+  public void replaceImages(long workoutId, List<String> imageKeys, OffsetDateTime createdAt) {
+    dsl.deleteFrom(WORKOUT_IMAGES).where(WORKOUT_IMAGES.WORKOUT_ID.eq(workoutId)).execute();
+    insertImages(workoutId, imageKeys, createdAt);
+  }
+
   /**
    * 編集の前に、見てよい記録（{@link WorkoutVisibility}）の投稿者を取る。記録の行をロックして、確かめてから書き込むまでの間に、同時の編集・削除で変わらないようにする。
    *
