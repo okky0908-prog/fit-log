@@ -107,6 +107,14 @@ class UserRepositoryTest {
         .isEqualTo(NOW.plusHours(1));
   }
 
+  @Test
+  void 件数の上限のために行をロックする_ユーザーがいなければfalse() {
+    long id = userRepository.insert(newUser("yamada", "yamada@example.com")).getId();
+
+    assertThat(userRepository.lockById(id)).isTrue();
+    assertThat(userRepository.lockById(id + 1000)).isFalse();
+  }
+
   private static NewUser newUser(String username, String email) {
     return new NewUser(username, "表示名", email, "hash", NOW);
   }

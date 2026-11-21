@@ -35,12 +35,18 @@ public enum ErrorCode {
   /** 存在しない URL */
   RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "指定された URL は存在しません"),
   METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "この URL では、この操作はできません"),
+  /** 種目が存在しない・他人の自分専用の種目（ほかの人の種目があるとは分からないようにする）・最初から用意された種目を変えようとした */
+  EXERCISE_NOT_FOUND(HttpStatus.NOT_FOUND, "種目が見つかりません"),
 
   // ===== 409 / 413 / 415 =====
   /** ユーザー名・メールアドレスが登録済み。どの項目かは errors に入る */
   ALREADY_REGISTERED(HttpStatus.CONFLICT, "すでに登録されています"),
   /** 確認済みのメールアドレスに、確認メールを再送しようとした */
   ALREADY_VERIFIED(HttpStatus.CONFLICT, "メールアドレスの確認はすでに済んでいます"),
+  /** 自分専用の種目の名前が、最初から用意された種目か自分の種目と同じ（大文字・小文字・全角半角は区別しない）。errors の name に入る */
+  EXERCISE_NAME_TAKEN(HttpStatus.CONFLICT, "同じ名前の種目があります"),
+  /** 自分専用の種目が100件ある */
+  EXERCISE_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "自分専用の種目は100件まで追加できます"),
   PAYLOAD_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "送信するデータが大きすぎます"),
   UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "リクエストの形式（Content-Type）に対応していません"),
 
