@@ -1,6 +1,5 @@
 # 手元の開発で使うコンテナ。テストは使わない（Testcontainers が使い捨てのコンテナを作る）。
 # 前回の SNS アプリとポートが同じなので、同時に起動しない（CLAUDE.md）。
-# LocalStack（記録の画像）は、使う機能を作るときに足す（docs/test-plan.md 8.1）
 name: fitlog
 
 services:
@@ -28,6 +27,25 @@ services:
     ports:
       - "1025:1025"   # SMTP（バックエンドが送る先。application.yml の spring.mail）
       - "8025:8025"   # 画面と API
+
+  # S3 の代わり（記録の画像の保存先）。2026.03.0 以降は起動に LocalStack のアカウントと認証トークンが必要になったため、
+  # トークンなしで動く最後の版 4.14.0 に固定する（前回と同じ）。
+  # 無料版はデータを保存しないので、コンテナを作り直すと画像は消える（バケットは起動時のスクリプトで作り直される）
+  localstack:
+    image: localstack/localstack:4.14.0
+    environment:
+      SERVICES: s3
+      S3_BUCKET: ${S3_BUCKET:-fitlog-images}
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./localstack/init/ready.d:/etc/localstack/init/ready.d:ro
+    healthcheck:
+      # バケットを作るスクリプトまで終わったら「準備完了」
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/init/ready | grep -q '\"completed\": true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
 volumes:
   postgres_data:

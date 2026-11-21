@@ -24,6 +24,7 @@ repositories {
 val codegen by sourceSets.creating
 
 val jjwtVersion = "0.13.0"
+val awsSdkVersion = "2.59.7"
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
@@ -39,6 +40,14 @@ dependencies {
     runtimeOnly("io.jsonwebtoken:jjwt-impl:$jjwtVersion")
     runtimeOnly("io.jsonwebtoken:jjwt-gson:$jjwtVersion")
     runtimeOnly("org.postgresql:postgresql")
+    // 記録の画像の保存先（S3。手元の開発とテストは LocalStack）と、署名付き URL（docs/tech-stack.md 3.9）。
+    // 非同期の通信（Netty）は使わないので外す
+    implementation(platform("software.amazon.awssdk:bom:$awsSdkVersion"))
+    implementation("software.amazon.awssdk:s3") {
+        exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
+    }
+    // 画像の付属データ（EXIF・XMP）を読み、位置情報を含む画像を受け付けない（docs/api.md A-20）
+    implementation("com.drewnoakes:metadata-extractor:2.22.0")
 
     // jOOQ のコード生成（版は、アプリが使う jOOQ と同じく Spring Boot が管理する）
     "codegenImplementation"("org.jooq:jooq-codegen")
@@ -57,6 +66,7 @@ dependencies {
     // テストは、使い捨ての PostgreSQL（pg_bigm 入りの自作イメージ）のコンテナで動かす（開発用の DB に書き込まない）
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-postgresql")
+    testImplementation("org.testcontainers:testcontainers-localstack")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

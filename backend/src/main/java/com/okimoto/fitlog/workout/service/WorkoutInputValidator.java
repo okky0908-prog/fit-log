@@ -3,6 +3,7 @@ package com.okimoto.fitlog.workout.service;
 import com.okimoto.fitlog.common.calc.JapanTime;
 import com.okimoto.fitlog.common.controller.ApiError.FieldError;
 import com.okimoto.fitlog.exercise.repository.ExerciseRepository;
+import com.okimoto.fitlog.image.calc.ImageRules;
 import com.okimoto.fitlog.workout.calc.SetInput;
 import com.okimoto.fitlog.workout.calc.SetRules;
 import com.okimoto.fitlog.workout.calc.WorkoutRules;
@@ -36,6 +37,26 @@ public class WorkoutInputValidator {
   public WorkoutInputValidator(ExerciseRepository exerciseRepository, Clock clock) {
     this.exerciseRepository = exerciseRepository;
     this.clock = clock;
+  }
+
+  /**
+   * 画像のチェック（docs/api.md A-20）。5枚以上なら {@code images}、1枚ごとの違反（大きさ・形式・位置情報）は {@code images[0]}
+   * の形で返す。枚数の違反のときは、1枚ごとのチェックをしない
+   *
+   * @param images 画像の中身（選んだ順）
+   * @return 項目ごとのエラー。なければ空
+   */
+  public List<FieldError> validateImages(List<byte[]> images) {
+    if (images.size() > ImageRules.MAX_COUNT) {
+      return List.of(new FieldError("images", ImageRules.COUNT_MESSAGE));
+    }
+    List<FieldError> errors = new ArrayList<>();
+    for (int i = 0; i < images.size(); i++) {
+      String field = "images[" + i + "]";
+      ImageRules.problem(images.get(i))
+          .ifPresent(message -> errors.add(new FieldError(field, message)));
+    }
+    return errors;
   }
 
   /**
