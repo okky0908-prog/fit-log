@@ -154,9 +154,10 @@ backend/                     Spring Boot（Java 25・Gradle）
   src/codegen/               jOOQ のコードを作るプログラム（アプリの jar には入らない）
   src/test/                  テスト（support/TestcontainersConfiguration：テスト用のコンテナ）
 frontend/                    React・TypeScript・Vite
-  src/lib/                   関数・通信（分岐網羅 90% 以上）
+  src/lib/                   関数・通信・ログインの状態（分岐網羅 90% 以上）。api/client.ts が API の呼び出しとトークンの再発行
   src/components/            画面の部品（隣に 〇〇.test.tsx）
-  src/pages/                 画面
+  src/pages/                 画面。routes.tsx が画面の URL の一覧
+  src/test/                  テストの共通の組み立て（偽物の API・アプリの描画）
   src/test/                  テストの共通の準備（setup.ts）・層のフォルダーのテスト
 db/Dockerfile                pg_bigm 入りの PostgreSQL 17（テストと docker-compose で共通）
 docker-compose.yml           手元の開発の DB・メール（Mailpit）

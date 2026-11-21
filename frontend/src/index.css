@@ -1,0 +1,74 @@
+/* 全体の色と文字（画面の部品は CSS Modules。docs/tech-stack.md） */
+:root {
+  --color-primary: #0f766e;
+  --color-primary-hover: #115e59;
+  --color-primary-surface: #ccfbf1;
+  --color-text: #1f2937;
+  --color-text-muted: #6b7280;
+  --color-border: #d1d5db;
+  --color-surface: #ffffff;
+  --color-background: #f9fafb;
+  --color-danger: #b91c1c;
+  --color-danger-surface: #fee2e2;
+  --color-warning-surface: #fef3c7;
+
+  font-family:
+    system-ui,
+    -apple-system,
+    'Hiragino Sans',
+    'Noto Sans JP',
+    sans-serif;
+  line-height: 1.6;
+  color: var(--color-text);
+  background: var(--color-background);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: var(--color-primary);
+}
+
+.button-primary,
+.button-secondary {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button-primary {
+  border: none;
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.button-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.button-secondary {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.button-primary:disabled,
+.button-secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

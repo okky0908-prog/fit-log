@@ -1,0 +1,59 @@
+/* ログイン・新規登録・メールアドレスの確認の画面（ナビゲーションのない、中央の1列） */
+.page {
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 48px 16px;
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.brand {
+  margin: 0;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--color-primary);
+}
+
+.title {
+  margin: 0;
+  text-align: center;
+  font-size: 1.125rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.alert {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+  font-size: 0.875rem;
+}
+
+.message {
+  margin: 0;
+  text-align: center;
+}
+
+.links {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+}
