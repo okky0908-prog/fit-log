@@ -7,7 +7,9 @@ import com.okimoto.fitlog.exercise.calc.ExerciseRules;
 import com.okimoto.fitlog.jooq.tables.records.ExercisesRecord;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
@@ -65,6 +67,19 @@ public class ExerciseRepository {
         EXERCISES,
         EXERCISES.NAME_KEY.eq(nameKey),
         EXERCISES.OWNER_ID.isNull().or(EXERCISES.OWNER_ID.eq(ownerId).and(self)));
+  }
+
+  /**
+   * 記録で使える種目（最初から用意された種目と、その人の自分専用の種目）の記録方式。他人の自分専用の種目・ない種目は入らない
+   *
+   * @return 種目の ID → 記録方式
+   */
+  public Map<Long, String> findUsable(long ownerId, Collection<Long> ids) {
+    return dsl.select(EXERCISES.ID, EXERCISES.RECORD_TYPE)
+        .from(EXERCISES)
+        .where(EXERCISES.ID.in(ids))
+        .and(EXERCISES.OWNER_ID.isNull().or(EXERCISES.OWNER_ID.eq(ownerId)))
+        .fetchMap(EXERCISES.ID, EXERCISES.RECORD_TYPE);
   }
 
   /** その人の自分専用の種目の数（100件の上限。数える前に users の行をロックしておく） */

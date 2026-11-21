@@ -18,6 +18,7 @@ import com.okimoto.fitlog.auth.service.JwtService;
 import com.okimoto.fitlog.exercise.calc.ExerciseRules;
 import com.okimoto.fitlog.exercise.repository.ExerciseRepository;
 import com.okimoto.fitlog.exercise.repository.NewExercise;
+import com.okimoto.fitlog.support.TestAccounts;
 import com.okimoto.fitlog.support.TestcontainersConfiguration;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -27,7 +28,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.jooq.DSLContext;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -41,7 +41,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -54,7 +53,6 @@ import tools.jackson.databind.ObjectMapper;
 @ActiveProfiles("test")
 class ExerciseIntegrationTest {
 
-  private static final AtomicInteger SEQUENCE = new AtomicInteger();
   private static final String NAME_MESSAGE = "種目の名前は1〜30文字で入力してください";
 
   @Autowired private MockMvc mockMvc;
@@ -436,24 +434,8 @@ class ExerciseIntegrationTest {
 
   /** 新しいユーザーを登録し、アクセストークンを返す */
   private String signup() throws Exception {
-    String username = "ex_" + SEQUENCE.incrementAndGet() + "_" + (System.nanoTime() % 10_000);
-    String body =
-        mockMvc
-            .perform(
-                post("/api/auth/signup")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(
-                        objectMapper.writeValueAsString(
-                            new Signup(username, "表示名", username + "@example.com", "password123"))))
-            .andExpect(status().isCreated())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    JsonNode json = objectMapper.readTree(body);
-    return json.get("accessToken").asString();
+    return new TestAccounts(mockMvc, objectMapper, dsl).signup().token();
   }
-
-  private record Signup(String username, String displayName, String email, String password) {}
 
   private record Create(String name, String bodyPart, String recordType) {}
 

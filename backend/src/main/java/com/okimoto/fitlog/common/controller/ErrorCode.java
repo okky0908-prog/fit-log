@@ -35,6 +35,8 @@ public enum ErrorCode {
   /** 存在しない URL */
   RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "指定された URL は存在しません"),
   METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "この URL では、この操作はできません"),
+  /** 記録が存在しない・見てはいけない（403 にすると、その ID の記録があると分かってしまうため） */
+  WORKOUT_NOT_FOUND(HttpStatus.NOT_FOUND, "記録が見つかりません"),
   /** 種目が存在しない・他人の自分専用の種目（ほかの人の種目があるとは分からないようにする）・最初から用意された種目を変えようとした */
   EXERCISE_NOT_FOUND(HttpStatus.NOT_FOUND, "種目が見つかりません"),
 
