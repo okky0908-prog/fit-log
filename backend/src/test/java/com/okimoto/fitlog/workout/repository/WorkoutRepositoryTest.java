@@ -137,6 +137,47 @@ class WorkoutRepositoryTest {
   }
 
   @Test
+  void 記録の画像を並び順に取り出せる_ほかの記録の画像は入らない() {
+    long id = save(author, "public");
+    long other = save(author, "public");
+    workoutRepository.insertImages(id, List.of("a.jpg", "b.jpg"), NOW);
+    workoutRepository.insertImages(other, List.of("other.jpg"), NOW);
+
+    assertThat(workoutRepository.findImages(id))
+        .extracting(WorkoutDetail.Image::imageKey, WorkoutDetail.Image::sortOrder)
+        .containsExactly(tuple("a.jpg", (short) 1), tuple("b.jpg", (short) 2));
+    assertThat(workoutRepository.findImages(save(author, "public"))).isEmpty();
+  }
+
+  @Test
+  void 画像を置き換えると_渡した順に並び直り_ほかの記録の画像は変わらない() {
+    long id = save(author, "public");
+    long other = save(author, "public");
+    workoutRepository.insertImages(id, List.of("a.jpg", "b.jpg", "c.jpg"), NOW);
+    workoutRepository.insertImages(other, List.of("other.jpg"), NOW);
+
+    workoutRepository.replaceImages(id, List.of("c.jpg", "a.jpg", "new.png"), NOW);
+
+    assertThat(workoutRepository.findImages(id))
+        .extracting(WorkoutDetail.Image::imageKey, WorkoutDetail.Image::sortOrder)
+        .containsExactly(
+            tuple("c.jpg", (short) 1), tuple("a.jpg", (short) 2), tuple("new.png", (short) 3));
+    assertThat(workoutRepository.findImages(other))
+        .extracting(WorkoutDetail.Image::imageKey)
+        .containsExactly("other.jpg");
+  }
+
+  @Test
+  void 画像を空で置き換えると_すべて外れる() {
+    long id = save(author, "public");
+    workoutRepository.insertImages(id, List.of("a.jpg"), NOW);
+
+    workoutRepository.replaceImages(id, List.of(), NOW);
+
+    assertThat(workoutRepository.findImages(id)).isEmpty();
+  }
+
+  @Test
   void 画像は1つの記録に4枚まで_DBでも止める() {
     long id = save(author, "public");
     List<String> five = List.of("1.jpg", "2.jpg", "3.jpg", "4.jpg", "5.jpg");

@@ -18,6 +18,7 @@ import java.util.List;
  * @param weightUnit 重量の単位（kg・lb）
  * @param distanceUnit 距離の単位（km・mi）
  * @param exercises 種目とセット（並び順のとおり）
+ * @param keepImageIds 編集（A-22）で残す画像の ID（並び順のとおり）。作成では使わない
  */
 public record WorkoutInput(
     LocalDate performedOn,
@@ -26,7 +27,8 @@ public record WorkoutInput(
     String visibility,
     String weightUnit,
     String distanceUnit,
-    List<Exercise> exercises) {
+    List<Exercise> exercises,
+    List<Long> keepImageIds) {
 
   /**
    * 記録の種目。

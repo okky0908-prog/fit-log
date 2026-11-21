@@ -137,6 +137,43 @@ class WorkoutImageFailureIntegrationTest {
         .untilAsserted(() -> assertThat(exists(storedKeys.getFirst())).isTrue());
   }
 
+  @Test
+  void 編集の保存が取り消されたら_新しい画像は消し_外すはずだった画像は残す() throws Exception {
+    Account me = accounts.signup();
+    doAnswer(this::recordKey)
+        .when(s3Client)
+        .putObject(any(PutObjectRequest.class), any(RequestBody.class));
+    String body =
+        create(me, TestImages.jpeg())
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    long id = objectMapper.readTree(body).get("id").asLong();
+    String original = storedKeys.getFirst();
+    doThrow(new DataAccessResourceFailureException("DB の保存の失敗"))
+        .when(workoutRepository)
+        .replaceImages(anyLong(), anyList(), any());
+
+    // 元の画像を外し、新しい画像を足す編集
+    Map<String, Object> data = new java.util.HashMap<>(data());
+    data.put("keepImageIds", List.of());
+    mockMvc
+        .perform(
+            multipart(org.springframework.http.HttpMethod.PUT, "/api/workouts/" + id)
+                .file(dataPart(data))
+                .file(new MockMultipartFile("images", "photo", "image/png", TestImages.png()))
+                .header(HttpHeaders.AUTHORIZATION, me.bearer()))
+        .andExpect(status().isInternalServerError());
+
+    assertThat(storedKeys).hasSize(2);
+    awaitDeleted(storedKeys.get(1));
+    await()
+        .during(Duration.ofSeconds(1))
+        .atMost(Duration.ofSeconds(2))
+        .untilAsserted(() -> assertThat(exists(original)).as("外すはずだった画像").isTrue());
+  }
+
   // ===== 補助 =====
 
   /** 本物の S3（LocalStack）に保存し、保存したキーを覚えておく */
@@ -162,29 +199,29 @@ class WorkoutImageFailureIntegrationTest {
   }
 
   private ResultActions create(Account account, byte[]... images) throws Exception {
-    Map<String, Object> data =
-        Map.of(
-            "performedOn",
-            JapanTime.today(clock).toString(),
-            "visibility",
-            "public",
-            "weightUnit",
-            "kg",
-            "distanceUnit",
-            "km",
-            "exercises",
-            List.of(Map.of("exerciseId", 8L, "sets", List.of(Map.of("reps", 20)))));
-    var request =
-        multipart("/api/workouts")
-            .file(
-                new MockMultipartFile(
-                    "data",
-                    "",
-                    MediaType.APPLICATION_JSON_VALUE,
-                    objectMapper.writeValueAsBytes(data)));
+    var request = multipart("/api/workouts").file(dataPart(data()));
     for (byte[] image : images) {
       request.file(new MockMultipartFile("images", "photo", "image/jpeg", image));
     }
     return mockMvc.perform(request.header(HttpHeaders.AUTHORIZATION, account.bearer()));
+  }
+
+  private MockMultipartFile dataPart(Map<String, Object> data) {
+    return new MockMultipartFile(
+        "data", "", MediaType.APPLICATION_JSON_VALUE, objectMapper.writeValueAsBytes(data));
+  }
+
+  private Map<String, Object> data() {
+    return Map.of(
+        "performedOn",
+        JapanTime.today(clock).toString(),
+        "visibility",
+        "public",
+        "weightUnit",
+        "kg",
+        "distanceUnit",
+        "km",
+        "exercises",
+        List.of(Map.of("exerciseId", 8L, "sets", List.of(Map.of("reps", 20)))));
   }
 }

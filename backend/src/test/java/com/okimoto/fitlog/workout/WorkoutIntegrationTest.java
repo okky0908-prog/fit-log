@@ -662,6 +662,8 @@ class WorkoutIntegrationTest {
     data.put("weightUnit", "kg");
     data.put("distanceUnit", "km");
     data.put("exercises", List.of(exercise(PUSH_UP, reps(20))));
+    // 編集で残す画像（作成では使わない）
+    data.put("keepImageIds", List.of());
     return data;
   }
 
