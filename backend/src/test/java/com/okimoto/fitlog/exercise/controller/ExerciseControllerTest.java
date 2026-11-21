@@ -16,9 +16,9 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * 種目の検索（A-30）のテスト。
+ * 種目の検索（A-30）の、最初から用意された種目の並び順とログインの要否。
  *
- * <p>段階 0 では、最初から用意された種目の一覧だけを確かめる。ログイン・自分専用の種目・検索の条件（q・bodyPart）は段階 1 で足す。
+ * <p>自分専用の種目・検索の条件（q・bodyPart）は ExerciseIntegrationTest で確かめる
  */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest

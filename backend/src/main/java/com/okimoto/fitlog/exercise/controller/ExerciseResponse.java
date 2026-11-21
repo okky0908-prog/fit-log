@@ -10,7 +10,7 @@ import com.okimoto.fitlog.jooq.tables.records.ExercisesRecord;
 public record ExerciseResponse(
     long id, String name, String bodyPart, String recordType, boolean isRunning, boolean custom) {
 
-  static ExerciseResponse from(ExercisesRecord exercise) {
+  public static ExerciseResponse from(ExercisesRecord exercise) {
     return new ExerciseResponse(
         exercise.getId(),
         exercise.getName(),

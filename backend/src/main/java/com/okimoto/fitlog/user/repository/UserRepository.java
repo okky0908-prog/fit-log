@@ -51,6 +51,21 @@ public class UserRepository {
     return dsl.selectFrom(USERS).where(USERS.ID.eq(id)).fetchOptional();
   }
 
+  /**
+   * ユーザーの行をロックする（トランザクションの終わりで外れる）。「1人100件まで」のような上限を数える前に呼び、同時のリクエストで上限を超えるのを防ぐ（docs/database.md
+   * 「件数の上限の守り方」）。
+   *
+   * @return ユーザーがいたか
+   */
+  public boolean lockById(long id) {
+    return dsl.select(USERS.ID)
+        .from(USERS)
+        .where(USERS.ID.eq(id))
+        .forUpdate()
+        .fetchOptional()
+        .isPresent();
+  }
+
   /** メールアドレスを確認済みにする。すでに確認済みなら、最初に確認した日時のままにする */
   public void markEmailVerified(long id, OffsetDateTime now) {
     dsl.update(USERS)
