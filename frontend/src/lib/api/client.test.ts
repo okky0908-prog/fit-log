@@ -305,3 +305,28 @@ describe('メールアドレスの確認（A-06・A-07）', () => {
     expect(authorization(1)).toBe('Bearer access-1')
   })
 })
+
+describe('記録（A-21・A-23）', () => {
+  test('詳細は、ログインのトークンを付けて GET する', async () => {
+    await loggedIn()
+    const workout = { id: 12, body: '脚の日' }
+    fetchMock.mockResolvedValueOnce(json(200, workout))
+
+    await expect(client.fetchWorkout(12)).resolves.toEqual(workout)
+
+    expect(call(1).url).toBe('/api/workouts/12')
+    expect(call(1).init.method).toBe('GET')
+    expect(authorization(1)).toBe('Bearer access-1')
+  })
+
+  test('削除は、本文のない 204 を受け取る', async () => {
+    await loggedIn()
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+
+    await expect(client.deleteWorkout(12)).resolves.toBeUndefined()
+
+    expect(call(1).url).toBe('/api/workouts/12')
+    expect(call(1).init.method).toBe('DELETE')
+    expect(authorization(1)).toBe('Bearer access-1')
+  })
+})
