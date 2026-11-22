@@ -21,17 +21,27 @@ function roundHalfUp(value: number, step: number): number {
   return Math.round(value / step + 1e-9) * step
 }
 
-/** 「60kg」「62.5kg」「135lb」の形。余分な 0 は付けない */
-export function formatWeight(kg: number, unit: WeightUnit): string {
+/** 重量を単位に換算し、表示の桁に丸めた値（「61.25」「135」。余分な 0 は付けない）。編集の入力欄の初期値にも使う */
+export function weightValue(kg: number, unit: WeightUnit): string {
   const value = unit === 'lb' ? kg / KG_PER_LB : kg
   // 丸めたあとの 2進数の誤差（60.250000001 など）を消してから文字にする
-  return `${Number(roundHalfUp(value, WEIGHT_STEP[unit]).toFixed(2))}${unit}`
+  return String(Number(roundHalfUp(value, WEIGHT_STEP[unit]).toFixed(2)))
 }
 
-/** 「5.00km」「3.10mi」の形（小数第2位まで出す） */
-export function formatDistance(km: number, unit: DistanceUnit): string {
+/** 「60kg」「62.5kg」「135lb」の形 */
+export function formatWeight(kg: number, unit: WeightUnit): string {
+  return `${weightValue(kg, unit)}${unit}`
+}
+
+/** 距離を単位に換算し、小数第2位までにした値（「5.00」「3.10」）。編集の入力欄の初期値にも使う */
+export function distanceValue(km: number, unit: DistanceUnit): string {
   const value = unit === 'mi' ? km / KM_PER_MILE : km
-  return `${roundHalfUp(value, 0.01).toFixed(2)}${unit}`
+  return roundHalfUp(value, 0.01).toFixed(2)
+}
+
+/** 「5.00km」「3.10mi」の形 */
+export function formatDistance(km: number, unit: DistanceUnit): string {
+  return `${distanceValue(km, unit)}${unit}`
 }
 
 /** 1時間未満は「30:00」、1時間以上は「1:05:05」の形 */

@@ -44,7 +44,7 @@ export function ConfirmDialog({
       <button
         type="button"
         className={styles.outside}
-        aria-label="閉じる"
+        aria-label="ダイアログを閉じる"
         tabIndex={-1}
         onClick={onCancel}
       />

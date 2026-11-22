@@ -7,6 +7,7 @@ import { LoginPage } from './LoginPage'
 import { SignupPage } from './SignupPage'
 import { VerifyEmailPage } from './VerifyEmailPage'
 import { WorkoutDetailPage } from './WorkoutDetailPage'
+import { WorkoutEditorPage } from './WorkoutEditorPage'
 
 // 画面の URL は docs/screens.md の画面一覧に合わせる。
 // 一覧（routes）とブラウザ用の切り替え（main.tsx の createBrowserRouter）を分けているのは、
@@ -34,7 +35,9 @@ export const routes: RouteObject[] = [
             element: <AppLayout />,
             children: [
               { path: '/', element: <HomePage /> },
+              { path: '/workouts/new', element: <WorkoutEditorPage /> },
               { path: '/workouts/:workoutId', element: <WorkoutDetailPage /> },
+              { path: '/workouts/:workoutId/edit', element: <WorkoutEditorPage /> },
             ],
           },
         ],

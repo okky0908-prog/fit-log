@@ -157,8 +157,8 @@
 | コード整形 | Prettier | 新規 | 前回のフロントは整形の道具がなかった。バックエンドの Spotless と同じく、CI で整形の崩れを確かめる。oxlint と同じ Oxc の整形の道具（oxfmt）もあるが、まだ新しいため、広く使われている Prettier にする |
 | ルーティング | React Router 8.5.1（前回は 8.4.0） | ○ | |
 | サーバーのデータの管理 | TanStack Query 5.107.1 | 新規 | 3.5 |
-| フォーム | React Hook Form・`@hookform/resolvers`（未定） | 新規 | 3.5 |
-| 入力の検証 | Zod（未定） | 新規 | 3.5 |
+| フォーム | React Hook Form 7.92.0・`@hookform/resolvers` 7.0.8 | 新規 | 3.5 |
+| 入力の検証 | Zod 4.6.7 | 新規 | 3.5 |
 | グラフ | Recharts（未定） | 新規 | 3.5。グラフの画面だけ後から読み込む |
 | 日付 | date-fns（未定） | 新規 | 3.5 |
 | サーバー通信 | 標準の fetch API | ○ | JWT を付ける・401 でトークンを取り直す、といった共通処理は自前の小さな関数にまとめ、TanStack Query から呼ぶ |

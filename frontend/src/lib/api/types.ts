@@ -120,3 +120,14 @@ export interface Workout {
   commentCount: number
   mine: boolean
 }
+
+/** 種目（docs/api.md A-30・A-31） */
+export interface Exercise {
+  id: number
+  name: string
+  bodyPart: string
+  recordType: RecordType
+  isRunning: boolean
+  /** 自分専用の種目か */
+  custom: boolean
+}

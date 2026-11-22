@@ -204,6 +204,17 @@ describe('見られない記録・通信の失敗', () => {
   )
 })
 
+test('自分の記録の … メニューの「編集」で、編集の画面へ移る', async () => {
+  vi.mocked(api.fetchWorkout).mockResolvedValue(MINE)
+  vi.mocked(api.fetchRecentExercises).mockResolvedValue([])
+  const { router } = renderApp('/workouts/12')
+
+  await userEvent.click(await screen.findByRole('button', { name: 'メニュー' }))
+  await userEvent.click(screen.getByRole('menuitem', { name: '編集' }))
+
+  expect(router.state.location.pathname).toBe('/workouts/12/edit')
+})
+
 describe('自分の記録の削除', () => {
   test('他人の記録には … メニューを出さない', async () => {
     vi.mocked(api.fetchWorkout).mockResolvedValue(WORKOUT)
@@ -297,7 +308,7 @@ test('確認ダイアログは、外側を押しても閉じる', async () => {
   await userEvent.click(screen.getByRole('menuitem', { name: '削除' }))
   // 開いたら「キャンセル」に移る（うっかり Enter で削除しないように）
   expect(screen.getByRole('button', { name: 'キャンセル' })).toHaveFocus()
-  await userEvent.click(screen.getByRole('button', { name: '閉じる' }))
+  await userEvent.click(screen.getByRole('button', { name: 'ダイアログを閉じる' }))
 
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(api.deleteWorkout).not.toHaveBeenCalled()

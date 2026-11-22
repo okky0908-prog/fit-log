@@ -1,0 +1,236 @@
+.message {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* 上の帯（× 見出し 投稿する）。スマートフォンで下に流れても押せるよう、上に留める */
+.bar {
+  position: sticky;
+  top: 52px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -16px -16px 16px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.close {
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form input,
+.form textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.form input[aria-invalid='true'],
+.form textarea[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 9em 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.short {
+  max-width: 8em;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.error {
+  margin: 4px 0 0;
+  color: var(--color-danger);
+  font-size: 0.8125rem;
+}
+
+.count,
+.countOver {
+  margin: 0;
+  font-size: 0.8125rem;
+  text-align: right;
+}
+
+.count {
+  color: var(--color-text-muted);
+}
+
+.countOver {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.exercise {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.exerciseHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.exerciseName {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.tools {
+  display: flex;
+  gap: 4px;
+}
+
+.tools button {
+  min-width: 2.25em;
+  padding: 2px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tools button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sets {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.set {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.setNumber {
+  min-width: 1.5em;
+  padding-top: 8px;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.cell {
+  flex: 1;
+  min-width: 0;
+}
+
+.cellWide {
+  flex: 2;
+  min-width: 0;
+}
+
+.removeSet {
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.add,
+.addSet {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border: 1px dashed var(--color-primary);
+  border-radius: 8px;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.addSet {
+  margin-top: 4px;
+}
+
+.visibility {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.visibility legend {
+  margin-bottom: 4px;
+}
+
+.radio {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.form .radio input {
+  width: auto;
+}
+
+.note {
+  width: 100%;
+  padding-left: 22px;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.columns {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.columns .setNumber {
+  padding-top: 0;
+}
+
+/* 見出しの行で、セットの「×」の幅をあける */
+.removeSpace {
+  width: 2.25em;
+}

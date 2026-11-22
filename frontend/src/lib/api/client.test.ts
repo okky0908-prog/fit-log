@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import type { WorkoutInput } from '../validation/workout'
 import type { AuthResponse } from './types'
 
 // client.ts はアクセストークン・再発行中の Promise をモジュールの変数に持つので、テストごとに読み込み直す
@@ -328,5 +329,86 @@ describe('記録（A-21・A-23）', () => {
     expect(call(1).url).toBe('/api/workouts/12')
     expect(call(1).init.method).toBe('DELETE')
     expect(authorization(1)).toBe('Bearer access-1')
+  })
+})
+
+describe('記録の作成・編集（A-20・A-22）', () => {
+  const INPUT: WorkoutInput = {
+    performedOn: '2026-11-22',
+    body: '',
+    durationMin: null,
+    visibility: 'public',
+    weightUnit: 'kg',
+    distanceUnit: 'km',
+    exercises: [{ exerciseId: 8, sets: [{ reps: 20 }] }],
+  }
+
+  async function dataPart(n: number): Promise<unknown> {
+    const form = call(n).init.body as FormData
+    const data = form.get('data') as Blob
+    expect(data.type).toBe('application/json')
+    return JSON.parse(await data.text())
+  }
+
+  test('作成は multipart で、記録の JSON を data のパートに入れる（Content-Type はブラウザに任せる）', async () => {
+    await loggedIn()
+    fetchMock.mockResolvedValueOnce(json(201, { id: 5 }))
+
+    await expect(client.createWorkout(INPUT)).resolves.toEqual({ id: 5 })
+
+    expect(call(1).url).toBe('/api/workouts')
+    expect(call(1).init.method).toBe('POST')
+    expect(authorization(1)).toBe('Bearer access-1')
+    expect((call(1).init.headers as Record<string, string>)['Content-Type']).toBeUndefined()
+    expect(await dataPart(1)).toEqual(INPUT)
+  })
+
+  test('編集は PUT で、残す画像の ID を data に入れる', async () => {
+    await loggedIn()
+    fetchMock.mockResolvedValueOnce(json(200, { id: 5 }))
+
+    await client.updateWorkout(5, { ...INPUT, keepImageIds: [3, 1] })
+
+    expect(call(1).url).toBe('/api/workouts/5')
+    expect(call(1).init.method).toBe('PUT')
+    expect(await dataPart(1)).toEqual({ ...INPUT, keepImageIds: [3, 1] })
+  })
+
+  test('multipart でも、トークンの期限切れなら再発行して送り直す', async () => {
+    await loggedIn()
+    fetchMock
+      .mockResolvedValueOnce(error(401, 'UNAUTHENTICATED'))
+      .mockResolvedValueOnce(json(200, auth('access-2')))
+      .mockResolvedValueOnce(json(201, { id: 5 }))
+
+    await client.createWorkout(INPUT)
+
+    expect(authorization(3)).toBe('Bearer access-2')
+    expect(await dataPart(3)).toEqual(INPUT)
+  })
+})
+
+describe('種目（A-30・A-31）', () => {
+  test('検索は、名前と部位を URL の条件にする（空なら付けない）', async () => {
+    await loggedIn()
+    fetchMock.mockResolvedValueOnce(json(200, [])).mockResolvedValueOnce(json(200, []))
+
+    await client.searchExercises({ q: 'ベンチ プレス', bodyPart: 'chest' })
+    await client.searchExercises({ q: '', bodyPart: null })
+
+    expect(call(1).url).toBe(
+      '/api/exercises?q=%E3%83%99%E3%83%B3%E3%83%81+%E3%83%97%E3%83%AC%E3%82%B9&bodyPart=chest',
+    )
+    expect(call(2).url).toBe('/api/exercises')
+    expect(authorization(1)).toBe('Bearer access-1')
+  })
+
+  test('最近使った種目', async () => {
+    await loggedIn()
+    fetchMock.mockResolvedValueOnce(json(200, [{ id: 1 }]))
+
+    await expect(client.fetchRecentExercises()).resolves.toEqual([{ id: 1 }])
+
+    expect(call(1).url).toBe('/api/exercises/recent')
   })
 })
