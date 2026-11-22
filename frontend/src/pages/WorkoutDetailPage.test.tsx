@@ -313,3 +313,48 @@ test('確認ダイアログは、外側を押しても閉じる', async () => {
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(api.deleteWorkout).not.toHaveBeenCalled()
 })
+
+describe('画像の拡大表示', () => {
+  test('押すと拡大し、‹ › と左右の矢印キーで移り、端では止まる', async () => {
+    vi.mocked(api.fetchWorkout).mockResolvedValue(WORKOUT)
+    renderApp('/workouts/12')
+
+    await userEvent.click(await screen.findByRole('button', { name: '画像 1 / 2 を拡大' }))
+
+    const dialog = screen.getByRole('dialog', { name: '画像 1 / 2' })
+    expect(within(dialog).getByRole('img')).toHaveAttribute('src', 'https://example.com/a.jpg')
+    expect(within(dialog).getByRole('button', { name: '前の画像' })).toBeDisabled()
+    await userEvent.click(within(dialog).getByRole('button', { name: '次の画像' }))
+    expect(screen.getByRole('dialog', { name: '画像 2 / 2' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '次の画像' })).toBeDisabled()
+    await userEvent.keyboard('{ArrowRight}')
+    expect(screen.getByRole('dialog', { name: '画像 2 / 2' })).toBeInTheDocument()
+    await userEvent.keyboard('{ArrowLeft}')
+    expect(screen.getByRole('dialog', { name: '画像 1 / 2' })).toBeInTheDocument()
+  })
+
+  test('Esc と外側のクリックで閉じる', async () => {
+    vi.mocked(api.fetchWorkout).mockResolvedValue(WORKOUT)
+    renderApp('/workouts/12')
+
+    await userEvent.click(await screen.findByRole('button', { name: '画像 2 / 2 を拡大' }))
+    expect(screen.getByRole('dialog', { name: '画像 2 / 2' })).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: '画像 1 / 2 を拡大' }))
+    await userEvent.click(screen.getByRole('button', { name: '拡大表示を閉じる' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  test('1枚だけなら、‹ › を出さない', async () => {
+    vi.mocked(api.fetchWorkout).mockResolvedValue({ ...WORKOUT, images: [WORKOUT.images[0]] })
+    renderApp('/workouts/12')
+
+    await userEvent.click(await screen.findByRole('button', { name: '画像 1 / 1 を拡大' }))
+
+    expect(screen.getByRole('dialog', { name: '画像 1 / 1' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '次の画像' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '前の画像' })).not.toBeInTheDocument()
+  })
+})

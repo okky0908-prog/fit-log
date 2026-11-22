@@ -374,6 +374,33 @@ describe('記録の作成・編集（A-20・A-22）', () => {
     expect(await dataPart(1)).toEqual({ ...INPUT, keepImageIds: [3, 1] })
   })
 
+  test('画像は、選んだ順に images のパートに入れる', async () => {
+    await loggedIn()
+    fetchMock
+      .mockResolvedValueOnce(json(201, { id: 5 }))
+      .mockResolvedValueOnce(json(200, { id: 5 }))
+    const first = new Blob(['a'], { type: 'image/jpeg' })
+    const second = new Blob(['bb'], { type: 'image/jpeg' })
+
+    await client.createWorkout(INPUT, [first, second])
+    await client.updateWorkout(5, { ...INPUT, keepImageIds: [] }, [second])
+
+    const created = (call(1).init.body as FormData).getAll('images') as File[]
+    expect(created.map((image) => image.size)).toEqual([1, 2])
+    expect(created.map((image) => image.name)).toEqual(['image-1.jpg', 'image-2.jpg'])
+    const updated = (call(2).init.body as FormData).getAll('images') as File[]
+    expect(updated.map((image) => image.size)).toEqual([2])
+  })
+
+  test('画像がなければ、images のパートを付けない', async () => {
+    await loggedIn()
+    fetchMock.mockResolvedValueOnce(json(201, { id: 5 }))
+
+    await client.createWorkout(INPUT)
+
+    expect((call(1).init.body as FormData).has('images')).toBe(false)
+  })
+
   test('multipart でも、トークンの期限切れなら再発行して送り直す', async () => {
     await loggedIn()
     fetchMock

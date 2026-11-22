@@ -220,24 +220,33 @@ export function deleteWorkout(id: number): Promise<void> {
 
 // ===== 記録の作成・編集（A-20・A-22）・種目（A-30・A-31） =====
 
-/** 記録の JSON を data のパートに入れる（docs/api.md A-20）。画像（images のパート）は 9-3 で足す */
-function workoutForm(input: object): FormData {
+/**
+ * 記録の JSON を data のパートに、画像を images のパートに選んだ順で入れる（docs/api.md A-20）。
+ * 画像は縮小した JPEG（lib/image/shrink.ts）。ファイル名はサーバーが使わないので、順番の番号にする
+ */
+function workoutForm(input: object, images: Blob[]): FormData {
   const form = new FormData()
   form.append('data', new Blob([JSON.stringify(input)], { type: 'application/json' }))
+  images.forEach((image, index) => form.append('images', image, `image-${index + 1}.jpg`))
   return form
 }
 
 /** A-20 記録の作成 */
-export function createWorkout(input: WorkoutInput): Promise<Workout> {
-  return apiFetch('/api/workouts', { method: 'POST', form: workoutForm(input), auth: true })
+export function createWorkout(input: WorkoutInput, images: Blob[] = []): Promise<Workout> {
+  return apiFetch('/api/workouts', { method: 'POST', form: workoutForm(input, images), auth: true })
 }
 
-/** A-22 記録の編集。keepImageIds は残す画像の ID（並び順のとおり） */
+/** A-22 記録の編集。keepImageIds は残す画像の ID（並び順のとおり）、images は残す画像のあとに並べる新しい画像 */
 export function updateWorkout(
   id: number,
   input: WorkoutInput & { keepImageIds: number[] },
+  images: Blob[] = [],
 ): Promise<Workout> {
-  return apiFetch(`/api/workouts/${id}`, { method: 'PUT', form: workoutForm(input), auth: true })
+  return apiFetch(`/api/workouts/${id}`, {
+    method: 'PUT',
+    form: workoutForm(input, images),
+    auth: true,
+  })
 }
 
 /** A-30 種目の検索。名前（部分一致）・部位が空なら、その条件では絞らない */
