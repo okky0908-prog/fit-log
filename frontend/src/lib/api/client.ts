@@ -8,7 +8,9 @@ import type {
   SignupInput,
   VerifyEmailResult,
   Workout,
+  Exercise,
 } from './types'
+import type { WorkoutInput } from '../validation/workout'
 
 /*
  * API の呼び出し（docs/api.md「共通のルール」。前回の SNS アプリと同じ方式）
@@ -79,6 +81,8 @@ interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   /** JSON にして送る値 */
   body?: unknown
+  /** multipart/form-data で送る値（画像を送る API）。Content-Type は、区切りの文字列を付けてブラウザが決める */
+  form?: FormData
   /** true ならアクセストークンを付け、401 なら再発行して1回だけやり直す */
   auth?: boolean
 }
@@ -86,7 +90,7 @@ interface RequestOptions {
 /** 1回だけ送る（Cookie は同じオリジンなので、ブラウザが付ける） */
 async function send<T>(
   path: string,
-  { method = 'GET', body, auth = false }: RequestOptions,
+  { method = 'GET', body, form, auth = false }: RequestOptions,
 ): Promise<T> {
   const headers: Record<string, string> = {}
   if (body !== undefined) {
@@ -101,7 +105,7 @@ async function send<T>(
     res = await fetch(path, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: form ?? (body === undefined ? undefined : JSON.stringify(body)),
     })
   } catch {
     throw new ApiError(0, 'NETWORK_ERROR', NETWORK_ERROR_MESSAGE)
@@ -212,4 +216,46 @@ export function fetchWorkout(id: number): Promise<Workout> {
 /** A-23 記録の削除。他人の記録は 403（FORBIDDEN） */
 export function deleteWorkout(id: number): Promise<void> {
   return apiFetch(`/api/workouts/${id}`, { method: 'DELETE', auth: true })
+}
+
+// ===== 記録の作成・編集（A-20・A-22）・種目（A-30・A-31） =====
+
+/** 記録の JSON を data のパートに入れる（docs/api.md A-20）。画像（images のパート）は 9-3 で足す */
+function workoutForm(input: object): FormData {
+  const form = new FormData()
+  form.append('data', new Blob([JSON.stringify(input)], { type: 'application/json' }))
+  return form
+}
+
+/** A-20 記録の作成 */
+export function createWorkout(input: WorkoutInput): Promise<Workout> {
+  return apiFetch('/api/workouts', { method: 'POST', form: workoutForm(input), auth: true })
+}
+
+/** A-22 記録の編集。keepImageIds は残す画像の ID（並び順のとおり） */
+export function updateWorkout(
+  id: number,
+  input: WorkoutInput & { keepImageIds: number[] },
+): Promise<Workout> {
+  return apiFetch(`/api/workouts/${id}`, { method: 'PUT', form: workoutForm(input), auth: true })
+}
+
+/** A-30 種目の検索。名前（部分一致）・部位が空なら、その条件では絞らない */
+export function searchExercises({
+  q,
+  bodyPart,
+}: {
+  q: string
+  bodyPart: string | null
+}): Promise<Exercise[]> {
+  const params = new URLSearchParams()
+  if (q !== '') params.set('q', q)
+  if (bodyPart) params.set('bodyPart', bodyPart)
+  const query = params.toString()
+  return apiFetch(`/api/exercises${query === '' ? '' : `?${query}`}`, { auth: true })
+}
+
+/** A-31 自分が最近使った種目（10件まで） */
+export function fetchRecentExercises(): Promise<Exercise[]> {
+  return apiFetch('/api/exercises/recent', { auth: true })
 }

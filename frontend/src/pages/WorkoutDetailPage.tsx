@@ -20,7 +20,7 @@ const VISIBILITY: Record<Visibility, { icon: string; label: string }> = {
  * S-12 投稿詳細（docs/screens.md）。
  *
  * ナイストレーニング・コメント（docs/test-plan.md 8.2 の 13）、消費カロリー（段階 5）、ハッシュタグのリンク（段階 4）、
- * 投稿者へのリンク（11）、`…` メニューの「編集」（9-2）・「複製」「テンプレートとして保存」（段階 4）は、それぞれの PR で足す
+ * 投稿者へのリンク（11）、`…` メニューの「複製」「テンプレートとして保存」（段階 4）は、それぞれの PR で足す
  */
 export function WorkoutDetailPage() {
   const { workoutId } = useParams()
@@ -162,7 +162,7 @@ function ExerciseView({ exercise, units }: { exercise: WorkoutExercise; units: U
   )
 }
 
-/** 自分の記録の `…` メニュー（docs/screens.md「投稿カード」）。今は「削除」だけ */
+/** 自分の記録の `…` メニュー（docs/screens.md「投稿カード」）。「複製」「テンプレートとして保存」は段階 4 で足す */
 function OwnerMenu({ workoutId }: { workoutId: number }) {
   const [open, setOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -196,6 +196,16 @@ function OwnerMenu({ workoutId }: { workoutId: number }) {
       </button>
       {open && (
         <ul role="menu" className={styles.menuList}>
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.menuItemPlain}
+              onClick={() => void navigate(`/workouts/${workoutId}/edit`)}
+            >
+              編集
+            </button>
+          </li>
           <li role="none">
             <button
               type="button"
