@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { ImageViewer } from '../components/ImageViewer'
 import { ApiError, deleteWorkout, errorMessage, fetchWorkout } from '../lib/api/client'
 import type { Visibility, Workout, WorkoutExercise } from '../lib/api/types'
 import { useAuth } from '../lib/auth/authContext'
@@ -113,18 +114,7 @@ function WorkoutView({ workout }: { workout: Workout }) {
         <ExerciseView key={index} exercise={exercise} units={units} />
       ))}
 
-      {workout.images.length > 0 && (
-        <div className={`${styles.images} ${styles[`images${workout.images.length}`]}`}>
-          {workout.images.map((image, index) => (
-            <img
-              key={image.id}
-              src={image.url}
-              alt={`画像 ${index + 1} / ${workout.images.length}`}
-              className={styles.image}
-            />
-          ))}
-        </div>
-      )}
+      {workout.images.length > 0 && <WorkoutImages urls={workout.images.map((i) => i.url)} />}
     </article>
   )
 }
@@ -136,6 +126,36 @@ function Icon({ emoji, label }: { emoji: string; label: string }) {
       <span aria-hidden="true">{emoji}</span>
       <span className="visually-hidden">{label}</span>
     </span>
+  )
+}
+
+/** 画像の並び（1〜4枚）。押すと拡大表示 */
+function WorkoutImages({ urls }: { urls: string[] }) {
+  const [viewing, setViewing] = useState<number | null>(null)
+  return (
+    <>
+      <div className={`${styles.images} ${styles[`images${urls.length}`]}`}>
+        {urls.map((url, index) => (
+          <button
+            key={url}
+            type="button"
+            className={styles.imageButton}
+            aria-label={`画像 ${index + 1} / ${urls.length} を拡大`}
+            onClick={() => setViewing(index)}
+          >
+            <img src={url} alt={`画像 ${index + 1} / ${urls.length}`} className={styles.image} />
+          </button>
+        ))}
+      </div>
+      {viewing !== null && (
+        <ImageViewer
+          urls={urls}
+          index={viewing}
+          onMove={setViewing}
+          onClose={() => setViewing(null)}
+        />
+      )}
+    </>
   )
 }
 

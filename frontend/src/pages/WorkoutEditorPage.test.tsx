@@ -3,11 +3,17 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import * as api from '../lib/api/client'
 import type { Exercise, Workout } from '../lib/api/types'
+import { shrinkImage, UnusableImageError } from '../lib/image/shrink'
 import { ME, renderApp, startAs } from '../test/helpers'
 
 vi.mock('../lib/api/client', (original) =>
   import('../test/apiMock').then((m) => m.mockApiClient(original)),
 )
+// 画像の縮小は Canvas を使うので jsdom では動かない。縮小の決まりは lib/image/shrink.test.ts で確かめる
+vi.mock('../lib/image/shrink', async (original) => ({
+  ...(await original<typeof import('../lib/image/shrink')>()),
+  shrinkImage: vi.fn<typeof import('../lib/image/shrink').shrinkImage>(),
+}))
 
 // S-13 記録の作成・編集（docs/screens.md）。画像・書きかけの一時保存・自分専用の種目の追加は 9-3 で足す
 
@@ -67,6 +73,11 @@ beforeEach(() => {
   vi.mocked(api.fetchRecentExercises).mockResolvedValue([])
   vi.mocked(api.searchExercises).mockResolvedValue([BENCH, PUSH_UP, RUNNING])
   vi.mocked(api.fetchWorkout).mockResolvedValue(SAVED)
+  // 縮小したものとして、元の名前を中身に入れた JPEG を返す（どの画像を送ったかを確かめるため）
+  vi.mocked(shrinkImage).mockReset()
+  vi.mocked(shrinkImage).mockImplementation(
+    async (file) => new Blob([`shrunk:${file.name}`], { type: 'image/jpeg' }),
+  )
   startAs(ME)
 })
 
@@ -121,24 +132,27 @@ describe('作成', () => {
     await userEvent.click(screen.getByRole('button', { name: '投稿する' }))
 
     expect(await screen.findByText('記録を投稿しました')).toBeInTheDocument()
-    expect(api.createWorkout).toHaveBeenCalledWith({
-      performedOn: '2026-11-22',
-      body: '胸の日',
-      durationMin: 75,
-      visibility: 'followers',
-      weightUnit: 'kg',
-      distanceUnit: 'km',
-      exercises: [
-        {
-          exerciseId: 1,
-          sets: [
-            { weight: 60, reps: 10 },
-            { weight: 60, reps: 8 },
-          ],
-        },
-        { exerciseId: 48, sets: [{ durationSec: 1800, distance: 5 }] },
-      ],
-    })
+    expect(api.createWorkout).toHaveBeenCalledWith(
+      {
+        performedOn: '2026-11-22',
+        body: '胸の日',
+        durationMin: 75,
+        visibility: 'followers',
+        weightUnit: 'kg',
+        distanceUnit: 'km',
+        exercises: [
+          {
+            exerciseId: 1,
+            sets: [
+              { weight: 60, reps: 10 },
+              { weight: 60, reps: 8 },
+            ],
+          },
+          { exerciseId: 48, sets: [{ durationSec: 1800, distance: 5 }] },
+        ],
+      },
+      [],
+    )
     // 詳細の画面（作成の画面は履歴に残さない）
     expect(await screen.findByRole('region', { name: 'ベンチプレス（胸）' })).toBeInTheDocument()
   })
@@ -178,6 +192,7 @@ describe('作成', () => {
         distanceUnit: 'mi',
         exercises: [{ exerciseId: 1, sets: [{ weight: 135.5, reps: 5 }] }],
       }),
+      [],
     )
   })
 
@@ -360,16 +375,20 @@ describe('編集', () => {
     await userEvent.click(screen.getByRole('button', { name: '保存する' }))
 
     expect(await screen.findByText('記録を保存しました')).toBeInTheDocument()
-    expect(api.updateWorkout).toHaveBeenCalledWith(12, {
-      performedOn: '2026-11-22',
-      body: '後のひとこと',
-      durationMin: 60,
-      visibility: 'private',
-      weightUnit: 'kg',
-      distanceUnit: 'km',
-      exercises: [{ exerciseId: 1, sets: [{ weight: 60, reps: 10 }] }],
-      keepImageIds: [3, 1],
-    })
+    expect(api.updateWorkout).toHaveBeenCalledWith(
+      12,
+      {
+        performedOn: '2026-11-22',
+        body: '後のひとこと',
+        durationMin: 60,
+        visibility: 'private',
+        weightUnit: 'kg',
+        distanceUnit: 'km',
+        exercises: [{ exerciseId: 1, sets: [{ weight: 60, reps: 10 }] }],
+        keepImageIds: [3, 1],
+      },
+      [],
+    )
   })
 
   test('他人の記録・見られない記録は「この記録は見つかりません」', async () => {
@@ -378,5 +397,155 @@ describe('編集', () => {
 
     expect(await screen.findByText('この記録は見つかりません')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '保存する' })).not.toBeInTheDocument()
+  })
+})
+
+describe('画像', () => {
+  const photo = (name: string) => new File(['x'], name, { type: 'image/jpeg' })
+
+  async function readyToPost() {
+    await addExercise('腕立て伏せ')
+    await fill('1セット目の回数', '20')
+  }
+
+  async function sentNames(images: Blob[]): Promise<string[]> {
+    return Promise.all(images.map(async (image) => (await image.text()).replace('shrunk:', '')))
+  }
+
+  test('選ぶと縮小してプレビューを出し、選んだ順に送る。× で外せる', async () => {
+    vi.mocked(api.createWorkout).mockResolvedValue(SAVED)
+    renderApp('/workouts/new')
+    await screen.findByRole('heading', { name: '新しい記録' })
+    await readyToPost()
+
+    await userEvent.upload(screen.getByLabelText('画像を追加'), [photo('a.jpg'), photo('b.jpg')])
+    await userEvent.upload(screen.getByLabelText('画像を追加'), photo('c.jpg'))
+
+    expect(await screen.findByAltText('画像 3')).toBeInTheDocument()
+    expect(shrinkImage).toHaveBeenCalledTimes(3)
+    await userEvent.click(screen.getByRole('button', { name: '画像 2 を外す' }))
+    expect(screen.queryByAltText('画像 3')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: '投稿する' }))
+
+    await screen.findByText('記録を投稿しました')
+    const [, images] = vi.mocked(api.createWorkout).mock.calls[0]
+    expect(await sentNames(images ?? [])).toEqual(['a.jpg', 'c.jpg'])
+  })
+
+  test('4枚まで。超えた分は足さずに理由を出し、4枚なら「＋」を出さない', async () => {
+    renderApp('/workouts/new')
+    await screen.findByRole('heading', { name: '新しい記録' })
+
+    await userEvent.upload(
+      screen.getByLabelText('画像を追加'),
+      ['1', '2', '3', '4', '5'].map((n) => photo(`${n}.jpg`)),
+    )
+
+    expect(await screen.findByAltText('画像 4')).toBeInTheDocument()
+    expect(screen.queryByAltText('画像 5')).not.toBeInTheDocument()
+    expect(screen.getByText('画像は4枚まで選べます')).toBeInTheDocument()
+    expect(screen.queryByLabelText('画像を追加')).not.toBeInTheDocument()
+    expect(shrinkImage).toHaveBeenCalledTimes(4)
+  })
+
+  test('すでにある枚数と合わせて4枚まで（3枚のところに2枚選ぶと、1枚だけ足す）', async () => {
+    renderApp('/workouts/new')
+    await screen.findByRole('heading', { name: '新しい記録' })
+    await userEvent.upload(
+      screen.getByLabelText('画像を追加'),
+      ['1', '2', '3'].map((n) => photo(`${n}.jpg`)),
+    )
+    await screen.findByAltText('画像 3')
+
+    await userEvent.upload(screen.getByLabelText('画像を追加'), [photo('4.jpg'), photo('5.jpg')])
+
+    expect(await screen.findByAltText('画像 4')).toBeInTheDocument()
+    expect(screen.queryByAltText('画像 5')).not.toBeInTheDocument()
+    expect(screen.getByText('画像は4枚まで選べます')).toBeInTheDocument()
+    expect(shrinkImage).toHaveBeenCalledTimes(4)
+  })
+
+  test('使えない画像は足さずに理由を出す。ほかの画像は足す', async () => {
+    vi.mocked(shrinkImage).mockImplementation(async (file) => {
+      if (file.name === 'bad.gif') throw new UnusableImageError()
+      return new Blob(['ok'], { type: 'image/jpeg' })
+    })
+    renderApp('/workouts/new')
+    await screen.findByRole('heading', { name: '新しい記録' })
+
+    await userEvent.upload(screen.getByLabelText('画像を追加'), [
+      photo('good.jpg'),
+      new File(['x'], 'bad.gif', { type: 'image/jpeg' }),
+    ])
+
+    expect(
+      await screen.findByText('この画像は使えません（JPEG・PNG・WebP、20MBまで）'),
+    ).toBeInTheDocument()
+    expect(screen.getByAltText('画像 1')).toBeInTheDocument()
+    expect(screen.queryByAltText('画像 2')).not.toBeInTheDocument()
+  })
+
+  test('サーバーが画像を受け付けなかったら、画像の欄の下に理由を出す', async () => {
+    vi.mocked(api.createWorkout).mockRejectedValue(
+      new api.ApiError(400, 'VALIDATION_FAILED', '入力内容に誤りがあります', [
+        { field: 'images[0]', message: '位置情報を含む画像はアップロードできません' },
+      ]),
+    )
+    renderApp('/workouts/new')
+    await screen.findByRole('heading', { name: '新しい記録' })
+    await readyToPost()
+    await userEvent.upload(screen.getByLabelText('画像を追加'), photo('a.jpg'))
+    await screen.findByAltText('画像 1')
+
+    await userEvent.click(screen.getByRole('button', { name: '投稿する' }))
+
+    expect(
+      await screen.findByText('画像 1：位置情報を含む画像はアップロードできません'),
+    ).toBeInTheDocument()
+  })
+
+  test('画像だけを選んだときも、閉じる前に確かめる', async () => {
+    renderApp('/workouts/new')
+    await screen.findByRole('heading', { name: '新しい記録' })
+    await userEvent.upload(screen.getByLabelText('画像を追加'), photo('a.jpg'))
+    await screen.findByAltText('画像 1')
+
+    await userEvent.click(screen.getByRole('button', { name: '閉じる' }))
+
+    expect(
+      screen.getByRole('dialog', { name: '入力中の記録は保存されません。閉じますか？' }),
+    ).toBeInTheDocument()
+  })
+
+  test('編集では今の画像を出し、外した画像は残さず、新しい画像を後ろに足して送る', async () => {
+    const existing: Workout = {
+      ...SAVED,
+      id: 12,
+      images: [
+        { id: 3, url: 'https://example.com/3.jpg', sortOrder: 1 },
+        { id: 1, url: 'https://example.com/1.jpg', sortOrder: 2 },
+        { id: 7, url: 'https://example.com/7.jpg', sortOrder: 3 },
+      ],
+    }
+    vi.mocked(api.fetchWorkout).mockResolvedValue(existing)
+    vi.mocked(api.updateWorkout).mockResolvedValue(existing)
+    renderApp('/workouts/12/edit')
+
+    expect(await screen.findByAltText('画像 1')).toHaveAttribute('src', 'https://example.com/3.jpg')
+    await userEvent.click(screen.getByRole('button', { name: '画像 2 を外す' }))
+    await userEvent.upload(screen.getByLabelText('画像を追加'), photo('new.jpg'))
+    expect(await screen.findByAltText('画像 3')).toHaveAttribute(
+      'src',
+      expect.stringMatching(/^blob:/),
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: '保存する' }))
+
+    await screen.findByText('記録を保存しました')
+    const [id, input, images] = vi.mocked(api.updateWorkout).mock.calls[0]
+    expect(id).toBe(12)
+    expect(input.keepImageIds).toEqual([3, 7])
+    expect(await sentNames(images ?? [])).toEqual(['new.jpg'])
   })
 })

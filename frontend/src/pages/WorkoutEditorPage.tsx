@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   type Control,
   type FieldErrors,
@@ -14,6 +14,7 @@ import {
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { ExercisePicker } from '../components/ExercisePicker'
+import { type ImageItem, MAX_IMAGES, WorkoutImagesField } from '../components/WorkoutImagesField'
 import {
   ApiError,
   createWorkout,
@@ -24,6 +25,7 @@ import {
 import type { Exercise, Workout } from '../lib/api/types'
 import { useAuth } from '../lib/auth/authContext'
 import { tokyoDate } from '../lib/format/date'
+import { shrinkImage, UNUSABLE_IMAGE_MESSAGE, UnusableImageError } from '../lib/image/shrink'
 import { bodyPartLabel, type Units } from '../lib/format/workout'
 import { useToast } from '../lib/toast'
 import {
@@ -54,7 +56,7 @@ const FORM_FIELDS =
 /**
  * S-13 記録の作成（`/workouts/new`）・編集（`/workouts/:workoutId/edit`）。docs/screens.md。
  *
- * 画像・書きかけの一時保存・自分専用の種目の追加と変更・「種目を変える」・セットの並べ替え（9-3）、
+ * 書きかけの一時保存・自分専用の種目の追加と変更・「種目を変える」・セットの並べ替え（9-4）、
  * テンプレート・前回の記録の呼び出し（段階 4）は、それぞれの PR で足す
  */
 export function WorkoutEditorPage() {
@@ -124,6 +126,7 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
       : { performedOn: today, durationMin: '', body: '', visibility: 'public', exercises: [] },
   })
   const exercises = useFieldArray({ control, name: 'exercises' })
+  const images = useImages(workout)
   const [picking, setPicking] = useState(false)
   const [confirmingClose, setConfirmingClose] = useState(false)
   const navigate = useNavigate()
@@ -153,11 +156,12 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
     const input = toWorkoutInput(form, units)
     try {
       const saved = workout
-        ? await updateWorkout(workout.id, {
-            ...input,
-            keepImageIds: workout.images.map((image) => image.id),
-          })
-        : await createWorkout(input)
+        ? await updateWorkout(
+            workout.id,
+            { ...input, keepImageIds: images.keptIds() },
+            images.newBlobs(),
+          )
+        : await createWorkout(input, images.newBlobs())
       queryClient.setQueryData(['workout', saved.id], saved)
       toast(savedMessage(saved, workout ? '記録を保存しました' : '記録を投稿しました'))
       // 作成・編集の画面は履歴に残さない（詳細から「戻る」で作成の画面に戻らないように）
@@ -171,12 +175,19 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
   function showFailure(err: unknown) {
     const fieldErrors = err instanceof ApiError ? err.fieldErrors : []
     let shown = false
+    const imageMessages: string[] = []
     for (const fieldError of fieldErrors) {
       const path = fieldError.field.replace(/\[(\d+)\]/g, '.$1')
       if (FORM_FIELDS.test(path)) {
         setError(path as never, { type: 'server', message: fieldError.message })
         shown = true
+      } else if (/^(images|keepImageIds)\b/.test(path)) {
+        imageMessages.push(images.describeError(path, fieldError.message))
+        shown = true
       }
+    }
+    if (imageMessages.length > 0) {
+      images.setMessage(imageMessages.join(' '))
     }
     if (!shown) {
       toast(errorMessage(err))
@@ -190,7 +201,7 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
           type="button"
           className={styles.close}
           aria-label="閉じる"
-          onClick={() => (isDirty ? setConfirmingClose(true) : goBack())}
+          onClick={() => (isDirty || images.changed ? setConfirmingClose(true) : goBack())}
         >
           ×
         </button>
@@ -199,7 +210,7 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
           type="submit"
           form="workout-form"
           className="button-primary"
-          disabled={!isValid || isSubmitting}
+          disabled={!isValid || isSubmitting || images.busy}
         >
           {workout ? '保存する' : '投稿する'}
         </button>
@@ -274,6 +285,14 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
           <FieldError message={errors.body?.message} />
         </div>
 
+        <WorkoutImagesField
+          images={images.items}
+          busy={images.busy}
+          message={images.message}
+          onAdd={(files) => void images.add(files)}
+          onRemove={images.remove}
+        />
+
         <fieldset className={styles.visibility}>
           <legend>公開範囲</legend>
           {VISIBILITIES.map((option) => (
@@ -301,6 +320,91 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
       )}
     </>
   )
+}
+
+/**
+ * 画像の欄の状態。今の画像（編集）のあとに、新しく選んで縮小した画像を並べる（docs/api.md A-22 の keepImageIds・images）
+ */
+function useImages(workout?: Workout) {
+  const [items, setItems] = useState<ImageItem[]>(() =>
+    (workout?.images ?? []).map((image) => ({
+      kind: 'existing',
+      key: `existing-${image.id}`,
+      id: image.id,
+      url: image.url,
+    })),
+  )
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [changed, setChanged] = useState(false)
+  const nextKey = useRef(0)
+  // 画面を閉じたら、プレビューに使った仮の URL を捨てる（ブラウザのメモリを空ける）
+  const itemsRef = useRef(items)
+  useEffect(() => {
+    itemsRef.current = items
+  }, [items])
+  useEffect(
+    () => () => {
+      for (const item of itemsRef.current) {
+        if (item.kind === 'new') URL.revokeObjectURL(item.url)
+      }
+    },
+    [],
+  )
+
+  async function add(files: File[]) {
+    const room = MAX_IMAGES - items.length
+    const messages = files.length > room ? ['画像は4枚まで選べます'] : []
+    setBusy(true)
+    const added: ImageItem[] = []
+    for (const file of files.slice(0, room)) {
+      try {
+        const blob = await shrinkImage(file)
+        nextKey.current += 1
+        added.push({
+          kind: 'new',
+          key: `new-${nextKey.current}`,
+          blob,
+          url: URL.createObjectURL(blob),
+        })
+      } catch (err) {
+        messages.unshift(err instanceof UnusableImageError ? err.message : UNUSABLE_IMAGE_MESSAGE)
+      }
+    }
+    setItems((current) => [...current, ...added])
+    setMessage(messages.length > 0 ? [...new Set(messages)].join(' ') : null)
+    setChanged(true)
+    setBusy(false)
+  }
+
+  function remove(index: number) {
+    const item = items[index]
+    if (item.kind === 'new') URL.revokeObjectURL(item.url)
+    setItems(items.filter((_, i) => i !== index))
+    setMessage(null)
+    setChanged(true)
+  }
+
+  const kept = items.filter((item) => item.kind === 'existing')
+
+  /** サーバーの画像のエラー。images[0] は新しい画像の何枚目かなので、並んでいる順の番号にする */
+  function describeError(path: string, text: string): string {
+    const match = /^images\.(\d+)$/.exec(path)
+    return match ? `画像 ${kept.length + Number(match[1]) + 1}：${text}` : text
+  }
+
+  return {
+    items,
+    busy,
+    message,
+    changed,
+    add,
+    remove,
+    setMessage,
+    describeError,
+    keptIds: () => kept.map((item) => item.id),
+    newBlobs: () => items.flatMap((item) => (item.kind === 'new' ? [item.blob] : [])),
+  }
 }
 
 /** 保存したあとのお知らせ。自己ベストを更新した種目があれば、それを伝える（docs/screens.md S-13「投稿する」） */
