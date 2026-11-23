@@ -483,3 +483,41 @@ describe('自分専用の種目（A-32〜A-34）', () => {
     expect(call(1).init.method).toBe('DELETE')
   })
 })
+
+describe('通知（A-120〜A-122）', () => {
+  test('一覧は、最初はカーソルなしで、続きはカーソルを URL の条件にする', async () => {
+    await loggedIn()
+    const page = { items: [], nextCursor: null, hasNext: false }
+    fetchMock.mockResolvedValueOnce(json(200, page)).mockResolvedValueOnce(json(200, page))
+
+    await expect(client.fetchNotifications()).resolves.toEqual(page)
+    await client.fetchNotifications('abc_-1')
+
+    expect(call(1).url).toBe('/api/notifications')
+    expect(call(2).url).toBe('/api/notifications?cursor=abc_-1')
+    expect(authorization(1)).toBe('Bearer access-1')
+  })
+
+  test('未読の数', async () => {
+    await loggedIn()
+    fetchMock.mockResolvedValueOnce(json(200, { unreadCount: 3, followRequestCount: 0 }))
+
+    await expect(client.fetchUnreadCount()).resolves.toEqual({
+      unreadCount: 3,
+      followRequestCount: 0,
+    })
+
+    expect(call(1).url).toBe('/api/notifications/unread-count')
+  })
+
+  test('既読は、表示した通知の ID を送る', async () => {
+    await loggedIn()
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+
+    await client.markNotificationsRead([3, 1])
+
+    expect(call(1).url).toBe('/api/notifications/read')
+    expect(call(1).init.method).toBe('POST')
+    expect(JSON.parse(call(1).init.body as string)).toEqual({ ids: [3, 1] })
+  })
+})

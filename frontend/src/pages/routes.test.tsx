@@ -45,12 +45,13 @@ test('ログインの状態を確かめている間は、読み込み中を出�
   expect(screen.getByText('読み込み中…')).toBeInTheDocument()
 })
 
-test('ログアウトを押すと、ログイン画面へ', async () => {
+test('アイコンのメニューのログアウトを押すと、ログイン画面へ', async () => {
   startAs(ME)
   vi.mocked(api.logout).mockResolvedValue(undefined)
   renderApp('/')
 
-  await userEvent.click(await screen.findByRole('button', { name: 'ログアウト' }))
+  await userEvent.click(await screen.findByRole('button', { name: '自分のメニュー' }))
+  await userEvent.click(screen.getByRole('menuitem', { name: 'ログアウト' }))
 
   expect(await screen.findByRole('heading', { level: 1, name: 'ログイン' })).toBeInTheDocument()
   expect(api.logout).toHaveBeenCalledOnce()

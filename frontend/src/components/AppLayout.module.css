@@ -5,11 +5,11 @@
 .header {
   position: sticky;
   top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 16px;
+  gap: 16px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
 }
@@ -22,8 +22,167 @@
   text-decoration: none;
 }
 
+.nav {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.navLink:global(.active) {
+  background: var(--color-primary-surface);
+  color: var(--color-primary-hover);
+}
+
+.navIcon {
+  display: none;
+}
+
+.record {
+  margin-left: auto;
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.plus {
+  font-weight: 700;
+}
+
+.record:global(.active) {
+  background: var(--color-primary-hover);
+  color: #ffffff;
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bell {
+  position: relative;
+  font-size: 1.25rem;
+  text-decoration: none;
+}
+
+.badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  min-width: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--color-danger);
+  color: #ffffff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.account {
+  position: relative;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-primary-surface);
+  color: var(--color-primary-hover);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 160px;
+  margin: 0;
+  padding: 4px 0;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  list-style: none;
+}
+
+.menu button {
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu button:hover {
+  background: var(--color-background);
+}
+
 .main {
   max-width: 640px;
   margin: 0 auto;
   padding: 16px;
+}
+
+/* スマートフォン：行き先は下のタブバーに並べる */
+@media (max-width: 640px) {
+  .nav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    justify-content: space-around;
+    gap: 0;
+    padding: 4px 0 calc(4px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .navLink {
+    flex-direction: column;
+    gap: 0;
+    font-size: 0.75rem;
+  }
+
+  .navIcon {
+    display: block;
+    font-size: 1.25rem;
+  }
+
+  .record {
+    margin-left: 0;
+    background: none;
+    color: var(--color-primary);
+  }
+
+  .plus {
+    font-size: 1.25rem;
+    line-height: 1.6;
+  }
+
+  .tools {
+    margin-left: auto;
+  }
+
+  /* タブバーに隠れないよう、下をあける */
+  .main {
+    padding-bottom: 88px;
+  }
 }

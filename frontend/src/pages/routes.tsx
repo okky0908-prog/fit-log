@@ -4,6 +4,7 @@ import { PublicOnly, RequireAuth } from '../components/RouteGuards'
 import { ErrorPage } from './ErrorPage'
 import { HomePage } from './HomePage'
 import { LoginPage } from './LoginPage'
+import { NotificationsPage } from './NotificationsPage'
 import { SignupPage } from './SignupPage'
 import { VerifyEmailPage } from './VerifyEmailPage'
 import { WorkoutDetailPage } from './WorkoutDetailPage'
@@ -38,6 +39,7 @@ export const routes: RouteObject[] = [
               { path: '/workouts/new', element: <WorkoutEditorPage /> },
               { path: '/workouts/:workoutId', element: <WorkoutDetailPage /> },
               { path: '/workouts/:workoutId/edit', element: <WorkoutEditorPage /> },
+              { path: '/notifications', element: <NotificationsPage /> },
             ],
           },
         ],
