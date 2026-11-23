@@ -12,6 +12,7 @@ import java.time.OffsetDateTime;
  * @param actorUsername 操作した人のユーザー名。目標の達成など、操作した人がいなければ null
  * @param actorDisplayName 操作した人の表示名
  * @param actorPrivate 操作した人が鍵アカウントか
+ * @param actorIconKey 操作した人のアイコンの S3 のキー。なければ null
  * @param workoutId 対象の投稿。なければ null
  * @param workoutBody 対象の投稿のひとこと（抜き出す前）
  */
@@ -23,5 +24,6 @@ public record NotificationRow(
     String actorUsername,
     String actorDisplayName,
     Boolean actorPrivate,
+    String actorIconKey,
     Long workoutId,
     String workoutBody) {}

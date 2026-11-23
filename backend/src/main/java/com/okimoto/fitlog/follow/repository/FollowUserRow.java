@@ -10,6 +10,7 @@ import java.time.OffsetDateTime;
  * @param username ユーザー名
  * @param displayName 表示名
  * @param isPrivate 鍵アカウントか
+ * @param iconKey アイコンの S3 のキー。なければ null
  * @param bio 自己紹介
  * @param myStatus 見ている人からこの人へのフォローの状態（pending・accepted）。なければ null
  * @param me 見ている人自身か
@@ -20,6 +21,7 @@ public record FollowUserRow(
     String username,
     String displayName,
     boolean isPrivate,
+    String iconKey,
     String bio,
     String myStatus,
     boolean me) {}

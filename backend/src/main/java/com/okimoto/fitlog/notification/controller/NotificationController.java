@@ -1,6 +1,7 @@
 package com.okimoto.fitlog.notification.controller;
 
 import com.okimoto.fitlog.auth.config.AuthenticatedUser;
+import com.okimoto.fitlog.image.service.ImageUrls;
 import com.okimoto.fitlog.notification.service.NotificationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -22,9 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class NotificationController {
 
   private final NotificationService notificationService;
+  private final ImageUrls imageUrls;
 
-  public NotificationController(NotificationService notificationService) {
+  public NotificationController(NotificationService notificationService, ImageUrls imageUrls) {
     this.notificationService = notificationService;
+    this.imageUrls = imageUrls;
   }
 
   /**
@@ -61,7 +64,9 @@ public class NotificationController {
       @RequestParam(required = false) String cursor) {
     NotificationService.Page page = notificationService.list(user.id(), cursor);
     return new PageResponse(
-        page.items().stream().map(NotificationResponse::from).toList(),
+        page.items().stream()
+            .map(row -> NotificationResponse.from(row, imageUrls::iconUrlOf))
+            .toList(),
         page.nextCursor(),
         page.nextCursor() != null);
   }

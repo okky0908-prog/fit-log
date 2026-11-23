@@ -10,6 +10,7 @@ import com.okimoto.fitlog.auth.service.AuthResult;
 import com.okimoto.fitlog.auth.service.AuthService;
 import com.okimoto.fitlog.auth.service.JwtService;
 import com.okimoto.fitlog.common.config.ClockConfig;
+import com.okimoto.fitlog.image.service.ImageUrls;
 import com.okimoto.fitlog.jooq.tables.records.UsersRecord;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,7 @@ class AuthControllerSecureCookieTest {
 
   @Autowired private MockMvc mockMvc;
   @MockitoBean private AuthService authService;
+  @MockitoBean private ImageUrls imageUrls;
 
   @Test
   void Secureの設定ならCookieにSecure属性を付ける() throws Exception {

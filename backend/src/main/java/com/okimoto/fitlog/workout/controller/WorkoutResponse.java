@@ -14,7 +14,7 @@ import java.util.function.Function;
  * の許可リストのテストが落ちる）。
  *
  * <p>まだ作っていない機能の項目は、決まった値を返す：{@code likeCount}・{@code likedByMe}・{@code commentCount} は
- * 0・false（13本目）、{@code personalBest} は false（段階 2）、{@code author.iconUrl} は null（プロフィールの編集）
+ * 0・false（13本目）、{@code personalBest} は false（段階 2）
  *
  * @param id 記録
  * @param author 投稿者
@@ -73,11 +73,20 @@ public record WorkoutResponse(
 
   /**
    * @param urlOf 画像の S3 のキーから、署名付き URL を作る（閲覧を許可したあとに呼ぶ）
+   * @param iconUrlOf アイコンの S3 のキーから、署名付き URL を作る（なければ null）
    */
-  static WorkoutResponse from(WorkoutDetail detail, long me, Function<String, String> urlOf) {
+  static WorkoutResponse from(
+      WorkoutDetail detail,
+      long me,
+      Function<String, String> urlOf,
+      Function<String, String> iconUrlOf) {
     return new WorkoutResponse(
         detail.id(),
-        new Author(detail.username(), detail.displayName(), null, detail.authorPrivate()),
+        new Author(
+            detail.username(),
+            detail.displayName(),
+            iconUrlOf.apply(detail.authorIconKey()),
+            detail.authorPrivate()),
         detail.performedOn(),
         JapanTime.of(detail.createdAt()),
         JapanTime.of(detail.editedAt()),

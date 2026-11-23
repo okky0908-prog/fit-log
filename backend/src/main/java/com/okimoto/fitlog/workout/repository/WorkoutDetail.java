@@ -13,6 +13,7 @@ import java.util.List;
  * @param username 投稿者のユーザー名
  * @param displayName 投稿者の表示名
  * @param authorPrivate 投稿者が鍵アカウントか
+ * @param authorIconKey 投稿者のアイコンの S3 のキー。なければ null
  * @param performedOn 実施日
  * @param createdAt 投稿日時
  * @param editedAt 編集した日時。未編集なら null
@@ -28,6 +29,7 @@ public record WorkoutDetail(
     String username,
     String displayName,
     boolean authorPrivate,
+    String authorIconKey,
     LocalDate performedOn,
     OffsetDateTime createdAt,
     OffsetDateTime editedAt,

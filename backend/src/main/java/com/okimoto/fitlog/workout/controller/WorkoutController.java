@@ -78,7 +78,7 @@ public class WorkoutController {
 
   /** 閲覧を許可した記録（Service で確かめたもの）なので、ここで画像の署名付き URL を作る */
   private WorkoutResponse response(WorkoutDetail detail, long me) {
-    return WorkoutResponse.from(detail, me, imageUrls::urlOf);
+    return WorkoutResponse.from(detail, me, imageUrls::urlOf, imageUrls::iconUrlOf);
   }
 
   private static List<byte[]> contents(List<MultipartFile> images) {

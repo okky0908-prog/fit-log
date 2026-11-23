@@ -1,5 +1,6 @@
 package com.okimoto.fitlog.auth.controller;
 
+import com.okimoto.fitlog.image.service.ImageUrls;
 import com.okimoto.fitlog.jooq.tables.records.UsersRecord;
 
 /**
@@ -7,7 +8,7 @@ import com.okimoto.fitlog.jooq.tables.records.UsersRecord;
  *
  * @param username ユーザー名
  * @param displayName 表示名
- * @param iconUrl アイコンの署名付き URL。なければ null（アイコンの保存は、プロフィールの編集の PR で作る）
+ * @param iconUrl アイコンの署名付き URL。なければ null
  * @param bio 自己紹介。なければ null
  * @param email メールアドレス
  * @param emailVerified メールアドレスの確認が済んでいるか
@@ -26,11 +27,11 @@ public record MeResponse(
     String weightUnit,
     String distanceUnit) {
 
-  static MeResponse from(UsersRecord user) {
+  static MeResponse from(UsersRecord user, ImageUrls imageUrls) {
     return new MeResponse(
         user.getUsername(),
         user.getDisplayName(),
-        null,
+        imageUrls.iconUrlOf(user.getIconKey()),
         user.getBio(),
         user.getEmail(),
         user.getEmailVerifiedAt() != null,

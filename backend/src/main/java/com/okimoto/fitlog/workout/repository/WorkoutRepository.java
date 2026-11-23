@@ -178,6 +178,7 @@ public class WorkoutRepository {
             USERS.USERNAME,
             USERS.DISPLAY_NAME,
             USERS.IS_PRIVATE,
+            USERS.ICON_KEY,
             WORKOUTS.PERFORMED_ON,
             WORKOUTS.CREATED_AT,
             WORKOUTS.EDITED_AT,

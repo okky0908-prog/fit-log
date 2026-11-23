@@ -50,9 +50,23 @@ public class ImageStorage {
    */
   public String storeWorkoutImage(byte[] bytes, ImageType type) {
     LocalDate today = JapanTime.today(clock);
-    String key =
+    return store(
         "workouts/%d/%02d/%s.%s"
-            .formatted(today.getYear(), today.getMonthValue(), UUID.randomUUID(), type.extension());
+            .formatted(today.getYear(), today.getMonthValue(), UUID.randomUUID(), type.extension()),
+        bytes,
+        type);
+  }
+
+  /**
+   * アイコンを {@code icons/{UUID}.{拡張子}} に保存し、キーを返す（docs/api.md A-82）。元のファイル名は使わない。
+   *
+   * <p>トランザクションの中で呼ぶ。保存できなければ 500（IMAGE_UPLOAD_FAILED）
+   */
+  public String storeIcon(byte[] bytes, ImageType type) {
+    return store("icons/%s.%s".formatted(UUID.randomUUID(), type.extension()), bytes, type);
+  }
+
+  private String store(String key, byte[] bytes, ImageType type) {
     try {
       s3Client.putObject(
           r -> r.bucket(properties.bucket()).key(key).contentType(type.contentType()),

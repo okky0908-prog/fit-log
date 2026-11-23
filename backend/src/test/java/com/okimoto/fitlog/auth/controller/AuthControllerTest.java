@@ -19,6 +19,7 @@ import com.okimoto.fitlog.auth.service.JwtService;
 import com.okimoto.fitlog.common.config.ClockConfig;
 import com.okimoto.fitlog.common.controller.ApiException;
 import com.okimoto.fitlog.common.controller.ErrorCode;
+import com.okimoto.fitlog.image.service.ImageUrls;
 import com.okimoto.fitlog.jooq.tables.records.UsersRecord;
 import jakarta.servlet.http.Cookie;
 import java.time.OffsetDateTime;
@@ -50,6 +51,7 @@ class AuthControllerTest {
   @Autowired private ObjectMapper objectMapper;
   @Autowired private JwtService jwtService;
   @MockitoBean private AuthService authService;
+  @MockitoBean private ImageUrls imageUrls;
 
   @Test
   void 新規登録できたら201とトークンとユーザーの情報を返す() throws Exception {
