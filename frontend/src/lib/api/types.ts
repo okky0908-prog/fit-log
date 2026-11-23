@@ -135,3 +135,48 @@ export interface Exercise {
   /** 自分専用の種目か */
   custom: boolean
 }
+
+/** 投稿者・操作した人など（docs/api.md「UserSummary」） */
+export interface UserSummary {
+  username: string
+  displayName: string
+  iconUrl: string | null
+  isPrivate: boolean
+}
+
+export type NotificationType =
+  | 'like'
+  | 'comment'
+  | 'reply'
+  | 'follow'
+  | 'follow_request'
+  | 'follow_accepted'
+  | 'goal_achieved'
+  | 'goal_cheer'
+
+/** 通知（docs/api.md「Notification」。A-120）。文言は画面が type から作る */
+export interface NotificationItem {
+  id: number
+  type: NotificationType
+  createdAt: string
+  read: boolean
+  /** 操作した人。目標の達成は null */
+  actor: UserSummary | null
+  /** 対象の投稿。bodyExcerpt は先頭の30文字（超えたら「…」） */
+  workout: { id: number; bodyExcerpt: string } | null
+  comment: { id: number; bodyExcerpt: string } | null
+  goal: { id: number; title: string } | null
+}
+
+/** 一覧の1ページ（docs/api.md「ページング」） */
+export interface Page<T> {
+  items: T[]
+  nextCursor: string | null
+  hasNext: boolean
+}
+
+/** A-121 未読の数 */
+export interface UnreadCount {
+  unreadCount: number
+  followRequestCount: number
+}

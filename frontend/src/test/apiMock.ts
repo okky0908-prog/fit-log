@@ -28,5 +28,12 @@ export async function mockApiClient(importOriginal: () => Promise<typeof api>) {
     createExercise: vi.fn<typeof actual.createExercise>(),
     updateExercise: vi.fn<typeof actual.updateExercise>(),
     deleteExercise: vi.fn<typeof actual.deleteExercise>(),
+    fetchNotifications: vi.fn<typeof actual.fetchNotifications>(),
+    // ナビゲーションがどの画面でも呼ぶので、既定は「未読 0件」にしておく
+    fetchUnreadCount: vi.fn<typeof actual.fetchUnreadCount>(async () => ({
+      unreadCount: 0,
+      followRequestCount: 0,
+    })),
+    markNotificationsRead: vi.fn<typeof actual.markNotificationsRead>(),
   }
 }

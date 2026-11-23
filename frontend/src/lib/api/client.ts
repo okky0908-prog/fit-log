@@ -9,6 +9,9 @@ import type {
   VerifyEmailResult,
   Workout,
   Exercise,
+  NotificationItem,
+  Page,
+  UnreadCount,
 } from './types'
 import type { WorkoutInput } from '../validation/workout'
 
@@ -291,4 +294,22 @@ export function updateExercise(
 /** A-34 自分専用の種目の削除。記録で使っていれば 409（EXERCISE_IN_USE） */
 export function deleteExercise(id: number): Promise<void> {
   return apiFetch(`/api/exercises/${id}`, { method: 'DELETE', auth: true })
+}
+
+// ===== 通知（A-120〜A-122） =====
+
+/** A-120 通知一覧（新しい順に20件）。続きは、前のページの nextCursor を渡す */
+export function fetchNotifications(cursor?: string): Promise<Page<NotificationItem>> {
+  const query = cursor === undefined ? '' : `?${new URLSearchParams({ cursor })}`
+  return apiFetch(`/api/notifications${query}`, { auth: true })
+}
+
+/** A-121 未読の数と、フォローのリクエストの数 */
+export function fetchUnreadCount(): Promise<UnreadCount> {
+  return apiFetch('/api/notifications/unread-count', { auth: true })
+}
+
+/** A-122 表示した通知を既読にする（50件まで）。自分の未読の通知だけが既読になる */
+export function markNotificationsRead(ids: number[]): Promise<void> {
+  return apiFetch('/api/notifications/read', { method: 'POST', body: { ids }, auth: true })
 }
