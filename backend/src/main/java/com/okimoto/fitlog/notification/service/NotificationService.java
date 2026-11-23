@@ -4,6 +4,7 @@ import com.okimoto.fitlog.common.calc.Cursor;
 import com.okimoto.fitlog.common.controller.ApiError.FieldError;
 import com.okimoto.fitlog.common.controller.ApiException;
 import com.okimoto.fitlog.common.controller.ErrorCode;
+import com.okimoto.fitlog.follow.repository.FollowRepository;
 import com.okimoto.fitlog.notification.repository.NotificationRepository;
 import com.okimoto.fitlog.notification.repository.NotificationRow;
 import java.time.Clock;
@@ -23,10 +24,13 @@ public class NotificationService {
   static final int UNREAD_CAP = 100;
 
   private final NotificationRepository repository;
+  private final FollowRepository followRepository;
   private final Clock clock;
 
-  public NotificationService(NotificationRepository repository, Clock clock) {
+  public NotificationService(
+      NotificationRepository repository, FollowRepository followRepository, Clock clock) {
     this.repository = repository;
+    this.followRepository = followRepository;
     this.clock = clock;
   }
 
@@ -68,6 +72,12 @@ public class NotificationService {
   @Transactional(readOnly = true)
   public int unreadCount(long me) {
     return repository.countUnread(me, UNREAD_CAP);
+  }
+
+  /** A-121 の自分へのフォローのリクエストの数（🔔 の画面の「フォローのリクエスト」の数） */
+  @Transactional(readOnly = true)
+  public int followRequestCount(long me) {
+    return followRepository.countPendingRequests(me);
   }
 
   /** A-122 既読にする。自分の未読の通知だけ。何回呼んでも同じ結果になる。空の配列なら何もしない（jOOQ が当てはまらない条件にする） */

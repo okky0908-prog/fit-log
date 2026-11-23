@@ -112,6 +112,19 @@ public class NotificationRepository {
         .execute();
   }
 
+  /**
+   * 取り消し（フォローの解除・リクエストの取り消しなど）で、その操作の通知を消す。
+   *
+   * @return 消した数
+   */
+  public int deleteFromActor(long recipientId, long actorId, String type) {
+    return dsl.deleteFrom(NOTIFICATIONS)
+        .where(NOTIFICATIONS.RECIPIENT_ID.eq(recipientId))
+        .and(NOTIFICATIONS.ACTOR_ID.eq(actorId))
+        .and(NOTIFICATIONS.TYPE.eq(type))
+        .execute();
+  }
+
   private static SelectJoinStep<?> withWorkouts(org.jooq.SelectSelectStep<?> select) {
     return select
         .from(NOTIFICATIONS)

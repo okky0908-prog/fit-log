@@ -259,13 +259,14 @@ class NotificationIntegrationTest {
   @Nested
   class 通知を作る部品 {
 
+    // 確かめる役（NotificationGuard）のない種類で、通知を作る部品そのものを確かめる
     @Test
     void 保存が確定したら_別のスレッドで通知ができる() throws Exception {
       Account me = accounts.signup();
       Account sato = accounts.signup();
 
-      transactions.executeWithoutResult(
-          status -> events.publishEvent(new NotificationEvent("follow", me.id(), sato.id(), null)));
+      transactions.executeWithoutResult(status ->
+          events.publishEvent(new NotificationEvent("follow_accepted", me.id(), sato.id(), null)));
 
       await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(count(me)).isEqualTo(1));
     }
@@ -276,7 +277,7 @@ class NotificationIntegrationTest {
       Account sato = accounts.signup();
 
       transactions.executeWithoutResult(status -> {
-        events.publishEvent(new NotificationEvent("follow", me.id(), sato.id(), null));
+        events.publishEvent(new NotificationEvent("follow_accepted", me.id(), sato.id(), null));
         status.setRollbackOnly();
       });
 

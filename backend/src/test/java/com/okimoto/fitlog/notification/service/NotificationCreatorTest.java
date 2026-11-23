@@ -13,9 +13,11 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.support.TransactionOperations;
 
 /** 通知を作るか（docs/test-plan.md 5.9）。イベントを受け取るクラスを直接呼ぶ（別のスレッド・待ちは結合テストで確かめる） */
 class NotificationCreatorTest {
@@ -28,7 +30,12 @@ class NotificationCreatorTest {
   @BeforeEach
   void setUp() {
     repository = mock(NotificationRepository.class);
-    creator = new NotificationCreator(repository, Clock.fixed(NOW, ZoneOffset.UTC));
+    creator =
+        new NotificationCreator(
+            repository,
+            List.of(),
+            TransactionOperations.withoutTransaction(),
+            Clock.fixed(NOW, ZoneOffset.UTC));
   }
 
   @Test
@@ -59,10 +66,49 @@ class NotificationCreatorTest {
   }
 
   @Test
+  void 通知がもう正しくなければ_作らない_フォローの直後に解除したときなど() {
+    NotificationGuard followGuard = guard("follow", false);
+    creator =
+        new NotificationCreator(
+            repository,
+            List.of(followGuard),
+            TransactionOperations.withoutTransaction(),
+            Clock.fixed(NOW, ZoneOffset.UTC));
+
+    creator.create(new NotificationEvent("follow", 1L, 2L, null));
+
+    verify(repository, never()).insert(any());
+  }
+
+  @Test
+  void 通知がまだ正しければ作り_ほかの種類の確かめ役には聞かない() {
+    NotificationGuard followGuard = guard("follow", true);
+    NotificationGuard likeGuard = guard("like", false);
+    creator =
+        new NotificationCreator(
+            repository,
+            List.of(likeGuard, followGuard),
+            TransactionOperations.withoutTransaction(),
+            Clock.fixed(NOW, ZoneOffset.UTC));
+
+    creator.create(new NotificationEvent("follow", 1L, 2L, null));
+
+    verify(repository).insert(any());
+    verify(likeGuard, never()).isStillValid(any());
+  }
+
+  @Test
   void 作れなくても_例外を外に出さない_もとの操作は成功のまま() {
     when(repository.insert(any())).thenThrow(new DataIntegrityViolationException("相手が退会した"));
 
     assertThatCode(() -> creator.create(new NotificationEvent("follow", 1L, 2L, null)))
         .doesNotThrowAnyException();
+  }
+
+  private static NotificationGuard guard(String type, boolean valid) {
+    NotificationGuard guard = mock(NotificationGuard.class);
+    when(guard.supports(any())).thenAnswer(invocation -> type.equals(invocation.getArgument(0)));
+    when(guard.isStillValid(any())).thenReturn(valid);
+    return guard;
   }
 }

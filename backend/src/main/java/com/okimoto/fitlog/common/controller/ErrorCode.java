@@ -18,6 +18,8 @@ public enum ErrorCode {
   MALFORMED_REQUEST(HttpStatus.BAD_REQUEST, "リクエストの形式が正しくありません"),
   /** 確認用のリンクのトークンが、期限切れ（期限ちょうども含む）・使用済み・不正 */
   INVALID_TOKEN(HttpStatus.BAD_REQUEST, "このリンクは使えません"),
+  /** 自分自身をフォロー・フォロー解除しようとした */
+  CANNOT_FOLLOW_SELF(HttpStatus.BAD_REQUEST, "自分自身はフォローできません"),
 
   // ===== 401 =====
   /** アクセストークンがない・無効・期限切れ。画面は A-04 で再発行して1回だけやり直す */
@@ -30,6 +32,8 @@ public enum ErrorCode {
   // ===== 403 =====
   /** 見られるが、操作する権限がない */
   FORBIDDEN(HttpStatus.FORBIDDEN, "この操作は実行できません"),
+  /** 鍵アカウントのフォロー・フォロワー一覧を、本人でも承認済みのフォロワーでもない人が見ようとした */
+  PRIVATE_ACCOUNT(HttpStatus.FORBIDDEN, "このアカウントは、承認されたフォロワーだけが見られます"),
 
   // ===== 404 / 405 =====
   /** 存在しない URL */
@@ -39,6 +43,8 @@ public enum ErrorCode {
   WORKOUT_NOT_FOUND(HttpStatus.NOT_FOUND, "記録が見つかりません"),
   /** 種目が存在しない・他人の自分専用の種目（ほかの人の種目があるとは分からないようにする）・最初から用意された種目を変えようとした */
   EXERCISE_NOT_FOUND(HttpStatus.NOT_FOUND, "種目が見つかりません"),
+  /** ユーザーが存在しない（ユーザー名は大文字・小文字を区別しない） */
+  USER_NOT_FOUND(HttpStatus.NOT_FOUND, "ユーザーが見つかりません"),
 
   // ===== 409 / 413 / 415 =====
   /** ユーザー名・メールアドレスが登録済み。どの項目かは errors に入る */

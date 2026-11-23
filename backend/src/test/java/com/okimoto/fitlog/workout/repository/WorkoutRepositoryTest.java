@@ -1,5 +1,6 @@
 package com.okimoto.fitlog.workout.repository;
 
+import static com.okimoto.fitlog.jooq.Tables.FOLLOWS;
 import static com.okimoto.fitlog.jooq.Tables.USERS;
 import static com.okimoto.fitlog.jooq.Tables.WORKOUTS;
 import static com.okimoto.fitlog.jooq.Tables.WORKOUT_EXERCISES;
@@ -196,25 +197,59 @@ class WorkoutRepositoryTest {
     assertThat(detail.durationMin()).isNull();
   }
 
-  /** 閲覧の制御（docs/test-plan.md 4.1 ①）のうち、フォローを使わない列。フォロワー（承認済み・リクエスト中・逆向き）の列は、フォローの表を作るときに足す */
-  @ParameterizedTest(name = "[{index}] 公開範囲 {0}・鍵アカウント {1} → 関係ない人が見られる {2}")
+  /**
+   * 閲覧の制御（docs/test-plan.md 4.1
+   * ①）の表のすべての組み合わせ。「リクエスト中」は鍵アカウントの人にしか起きないが、条件の書き漏れを見つけるため、鍵アカウントでない行でも確かめる
+   */
+  @ParameterizedTest(name = "[{index}] 公開範囲 {0}・鍵アカウント {1} → 承認済み {2}・リクエスト中 {3}・逆向き {4}・関係なし {5}")
   @CsvSource({
-    "public, false, true",
-    "public, true, false",
-    "followers, false, false",
-    "followers, true, false",
-    "private, false, false",
-    "private, true, false",
+    "public,    false, true,  true,  true,  true",
+    "public,    true,  true,  false, false, false",
+    "followers, false, true,  false, false, false",
+    "followers, true,  true,  false, false, false",
+    "private,   false, false, false, false, false",
+    "private,   true,  false, false, false, false",
   })
-  void 本人はすべて見られ_関係ない人は鍵アカウントでない人の公開の記録だけ見られる(
-      String visibility, boolean authorPrivate, boolean byStranger) {
+  void 本人はすべて見られ_ほかの人はフォローの状態と公開範囲と鍵アカウントで決まる(
+      String visibility,
+      boolean authorPrivate,
+      boolean byFollower,
+      boolean byRequester,
+      boolean byReverse,
+      boolean byStranger) {
     dsl.update(USERS).set(USERS.IS_PRIVATE, authorPrivate).where(USERS.ID.eq(author)).execute();
+    long follower = userRepository.insert(user("follower")).getId();
+    long requester = userRepository.insert(user("requester")).getId();
+    long reverse = userRepository.insert(user("reverse")).getId();
+    follow(follower, author, "accepted");
+    follow(requester, author, "pending");
+    // 投稿者が相手をフォローしているだけ（向きが逆）
+    follow(author, reverse, "accepted");
     long id = save(author, visibility);
 
     assertThat(workoutRepository.findVisible(id, author)).as("本人").isPresent();
+    assertThat(workoutRepository.findVisible(id, follower).isPresent())
+        .as("承認済みのフォロワー")
+        .isEqualTo(byFollower);
+    assertThat(workoutRepository.findVisible(id, requester).isPresent())
+        .as("リクエスト中")
+        .isEqualTo(byRequester);
+    assertThat(workoutRepository.findVisible(id, reverse).isPresent())
+        .as("逆向き")
+        .isEqualTo(byReverse);
     assertThat(workoutRepository.findVisible(id, other).isPresent())
         .as("関係なし")
         .isEqualTo(byStranger);
+  }
+
+  private void follow(long follower, long followee, String status) {
+    dsl.insertInto(FOLLOWS)
+        .set(FOLLOWS.FOLLOWER_ID, follower)
+        .set(FOLLOWS.FOLLOWEE_ID, followee)
+        .set(FOLLOWS.STATUS, status)
+        .set(FOLLOWS.CREATED_AT, NOW)
+        .set(FOLLOWS.ACCEPTED_AT, "accepted".equals(status) ? NOW : null)
+        .execute();
   }
 
   @Test

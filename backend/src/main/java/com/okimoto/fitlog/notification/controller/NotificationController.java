@@ -41,7 +41,7 @@ public class NotificationController {
    * 未読の数（A-121）。
    *
    * @param unreadCount 未読の通知の数（100 で数えるのをやめる）
-   * @param followRequestCount 自分へのフォローのリクエストの数（フォローを作るまで 0）
+   * @param followRequestCount 自分へのフォローのリクエストの数（数えるのをやめない）
    */
   public record UnreadCountResponse(int unreadCount, int followRequestCount) {}
 
@@ -69,7 +69,9 @@ public class NotificationController {
   /** A-121 未読の数 */
   @GetMapping("/unread-count")
   public UnreadCountResponse unreadCount(@AuthenticationPrincipal AuthenticatedUser user) {
-    return new UnreadCountResponse(notificationService.unreadCount(user.id()), 0);
+    return new UnreadCountResponse(
+        notificationService.unreadCount(user.id()),
+        notificationService.followRequestCount(user.id()));
   }
 
   /** A-122 既読にする */
