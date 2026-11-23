@@ -57,8 +57,7 @@ const FORM_FIELDS =
 /**
  * S-13 記録の作成（`/workouts/new`）・編集（`/workouts/:workoutId/edit`）。docs/screens.md。
  *
- * 自分専用の種目の追加と変更（9-5）、
- * テンプレート・前回の記録の呼び出し（段階 4）は、それぞれの PR で足す
+ * テンプレート・前回の記録の呼び出し（段階 4）は、その PR で足す
  */
 export function WorkoutEditorPage() {
   const { workoutId } = useParams()
@@ -150,6 +149,15 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
   const queryClient = useQueryClient()
 
   const bodyLength = countCharacters(normalizeBody(useWatch({ control, name: 'body' })))
+
+  /** 自分専用の種目の名前・部位を変えたら、入力中の記録の同じ種目の表示も合わせる（セットはそのまま） */
+  function renameExercise(updated: Exercise) {
+    getValues('exercises').forEach((current, index) => {
+      if (current.exerciseId === updated.id) {
+        exercises.update(index, { ...current, name: updated.name, bodyPart: updated.bodyPart })
+      }
+    })
+  }
 
   function selectExercise(exercise: Exercise) {
     if (picker?.mode === 'change') {
@@ -375,6 +383,7 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
           onSelect={selectExercise}
           onClose={() => setPicker(null)}
           recordType={picker.mode === 'change' ? picker.recordType : undefined}
+          onUpdated={renameExercise}
         />
       )}
       {confirmingClose && (

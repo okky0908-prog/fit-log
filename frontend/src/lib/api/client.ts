@@ -268,3 +268,27 @@ export function searchExercises({
 export function fetchRecentExercises(): Promise<Exercise[]> {
   return apiFetch('/api/exercises/recent', { auth: true })
 }
+
+// ===== 自分専用の種目（A-32〜A-34） =====
+
+/** A-32 自分専用の種目の追加。同じ名前は 409（EXERCISE_NAME_TAKEN）、100件あれば 409（EXERCISE_LIMIT_EXCEEDED） */
+export function createExercise(input: {
+  name: string
+  bodyPart: string
+  recordType: string
+}): Promise<Exercise> {
+  return apiFetch('/api/exercises', { method: 'POST', body: input, auth: true })
+}
+
+/** A-33 自分専用の種目の名前・部位の変更（記録方式は変えられない） */
+export function updateExercise(
+  id: number,
+  input: { name: string; bodyPart: string },
+): Promise<Exercise> {
+  return apiFetch(`/api/exercises/${id}`, { method: 'PUT', body: input, auth: true })
+}
+
+/** A-34 自分専用の種目の削除。記録で使っていれば 409（EXERCISE_IN_USE） */
+export function deleteExercise(id: number): Promise<void> {
+  return apiFetch(`/api/exercises/${id}`, { method: 'DELETE', auth: true })
+}

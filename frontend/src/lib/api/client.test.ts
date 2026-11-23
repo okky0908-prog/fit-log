@@ -439,3 +439,47 @@ describe('種目（A-30・A-31）', () => {
     expect(call(1).url).toBe('/api/exercises/recent')
   })
 })
+
+describe('自分専用の種目（A-32〜A-34）', () => {
+  test('追加は、名前・部位・記録方式を JSON で送る', async () => {
+    await loggedIn()
+    fetchMock.mockResolvedValueOnce(json(201, { id: 200 }))
+
+    await expect(
+      client.createExercise({ name: '種目', bodyPart: 'legs', recordType: 'reps' }),
+    ).resolves.toEqual({ id: 200 })
+
+    expect(call(1).url).toBe('/api/exercises')
+    expect(call(1).init.method).toBe('POST')
+    expect(JSON.parse(call(1).init.body as string)).toEqual({
+      name: '種目',
+      bodyPart: 'legs',
+      recordType: 'reps',
+    })
+    expect(authorization(1)).toBe('Bearer access-1')
+  })
+
+  test('変更は、名前と部位を PUT で送る', async () => {
+    await loggedIn()
+    fetchMock.mockResolvedValueOnce(json(200, { id: 200 }))
+
+    await client.updateExercise(200, { name: '新しい名前', bodyPart: 'back' })
+
+    expect(call(1).url).toBe('/api/exercises/200')
+    expect(call(1).init.method).toBe('PUT')
+    expect(JSON.parse(call(1).init.body as string)).toEqual({
+      name: '新しい名前',
+      bodyPart: 'back',
+    })
+  })
+
+  test('削除は、本文のない 204 を受け取る', async () => {
+    await loggedIn()
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+
+    await expect(client.deleteExercise(200)).resolves.toBeUndefined()
+
+    expect(call(1).url).toBe('/api/exercises/200')
+    expect(call(1).init.method).toBe('DELETE')
+  })
+})

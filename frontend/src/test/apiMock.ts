@@ -25,5 +25,8 @@ export async function mockApiClient(importOriginal: () => Promise<typeof api>) {
     updateWorkout: vi.fn<typeof actual.updateWorkout>(),
     searchExercises: vi.fn<typeof actual.searchExercises>(),
     fetchRecentExercises: vi.fn<typeof actual.fetchRecentExercises>(),
+    createExercise: vi.fn<typeof actual.createExercise>(),
+    updateExercise: vi.fn<typeof actual.updateExercise>(),
+    deleteExercise: vi.fn<typeof actual.deleteExercise>(),
   }
 }

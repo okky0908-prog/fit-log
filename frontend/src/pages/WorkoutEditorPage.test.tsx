@@ -754,3 +754,26 @@ describe('種目を変える・セットの並べ替え', () => {
     expect(screen.getByLabelText('1セット目の回数')).toHaveValue('10')
   })
 })
+
+test('入力中の記録で使っている自分専用の種目の名前・部位を変えたら、記録の表示も合わせる', async () => {
+  const mine: Exercise = { ...PUSH_UP, id: 200, name: '自作の種目', bodyPart: 'legs', custom: true }
+  vi.mocked(api.searchExercises).mockResolvedValue([mine])
+  vi.mocked(api.updateExercise).mockResolvedValue({ ...mine, name: '新しい名前', bodyPart: 'back' })
+  renderApp('/workouts/new')
+  await screen.findByRole('heading', { name: '新しい記録' })
+  await userEvent.click(screen.getByRole('button', { name: '＋ 種目を追加' }))
+  await userEvent.click(await screen.findByRole('button', { name: /^自作の種目★/ }))
+  await fill('1セット目の回数', '15')
+
+  await userEvent.click(screen.getByRole('button', { name: '＋ 種目を追加' }))
+  await userEvent.click(await screen.findByRole('button', { name: '自作の種目のメニュー' }))
+  await userEvent.click(screen.getByRole('menuitem', { name: '名前・部位を変える' }))
+  const form = screen.getByRole('dialog', { name: '種目の名前・部位を変える' })
+  await userEvent.clear(within(form).getByLabelText('種目の名前'))
+  await userEvent.type(within(form).getByLabelText('種目の名前'), '新しい名前')
+  await userEvent.click(within(form).getByRole('button', { name: '保存する' }))
+  await userEvent.click(screen.getByRole('button', { name: '戻る' }))
+
+  expect(screen.getByRole('region', { name: '新しい名前（背中）' })).toBeInTheDocument()
+  expect(screen.getByLabelText('1セット目の回数')).toHaveValue('15')
+})
