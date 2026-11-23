@@ -29,6 +29,12 @@
   gap: 8px;
 }
 
+.byline {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
 .author {
   display: flex;
   flex-wrap: wrap;

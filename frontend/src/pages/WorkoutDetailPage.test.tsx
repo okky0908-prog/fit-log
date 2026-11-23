@@ -162,6 +162,30 @@ describe('表示', () => {
   })
 })
 
+test('投稿者のアイコン・表示名・ユーザー名は、押すとその人のプロフィールへ移る', async () => {
+  vi.mocked(api.fetchWorkout).mockResolvedValue({
+    ...WORKOUT,
+    author: { ...WORKOUT.author, iconUrl: 'https://example.com/icon.png' },
+  })
+  vi.mocked(api.fetchProfile).mockReturnValue(new Promise(() => {}))
+  const { router } = renderApp('/workouts/12')
+
+  expect(await within(await screen.findByRole('main')).findByTestId('avatar')).toHaveAttribute(
+    'src',
+    'https://example.com/icon.png',
+  )
+  const username = WORKOUT.author.username
+  for (const name of [
+    `${WORKOUT.author.displayName}のプロフィール`,
+    WORKOUT.author.displayName,
+    `@${username}`,
+  ]) {
+    expect(screen.getByRole('link', { name })).toHaveAttribute('href', `/users/${username}`)
+  }
+  await userEvent.click(screen.getByRole('link', { name: WORKOUT.author.displayName }))
+  expect(router.state.location.pathname).toBe(`/users/${username}`)
+})
+
 describe('見られない記録・通信の失敗', () => {
   test('見てはいけない・ない記録は「この記録は見つかりません」', async () => {
     vi.mocked(api.fetchWorkout).mockRejectedValue(

@@ -5,6 +5,7 @@ import { fetchUnreadCount } from '../lib/api/client'
 import { useAuth } from '../lib/auth/authContext'
 import { formatUnreadCount } from '../lib/notification/notification'
 import styles from './AppLayout.module.css'
+import { Avatar } from './Avatar'
 import { UnverifiedNotice } from './UnverifiedNotice'
 
 /** 未読の数を取り直す間隔（F-112） */
@@ -107,10 +108,21 @@ function AccountMenu() {
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        {user?.displayName.slice(0, 1)}
+        {user && <Avatar displayName={user.displayName} iconUrl={user.iconUrl} size={32} />}
       </button>
       {open && (
         <ul role="menu" className={styles.menu}>
+          {user && (
+            <li role="none">
+              <Link
+                to={`/users/${encodeURIComponent(user.username)}`}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+              >
+                プロフィール
+              </Link>
+            </li>
+          )}
           <li role="none">
             <button type="button" role="menuitem" onClick={() => void logout()}>
               ログアウト

@@ -21,6 +21,9 @@ export type ApiErrorCode =
   | 'EXERCISE_LIMIT_EXCEEDED'
   | 'EXERCISE_IN_USE'
   | 'FORBIDDEN'
+  | 'USER_NOT_FOUND'
+  | 'CANNOT_FOLLOW_SELF'
+  | 'PRIVATE_ACCOUNT'
   | (string & {})
 
 /** 項目ごとのエラー（入力チェック・登録済み） */
@@ -142,6 +145,27 @@ export interface UserSummary {
   displayName: string
   iconUrl: string | null
   isPrivate: boolean
+}
+
+/** 自分から相手へのフォローの状態（A-70〜A-73・A-80） */
+export type FollowStatus = 'none' | 'requested' | 'following'
+
+/** ユーザー一覧の1人（A-72・A-73。UserSummary に、自己紹介・自分から見た状態・自分自身かを足したもの） */
+export interface UserListItem extends UserSummary {
+  bio: string | null
+  followStatus: FollowStatus
+  me: boolean
+}
+
+/** プロフィール（A-80） */
+export interface Profile extends UserSummary {
+  bio: string | null
+  followingCount: number
+  followerCount: number
+  me: boolean
+  followStatus: FollowStatus
+  /** 記録・公開した目標・フォロー一覧を見られるか（本人・鍵アカウントでない・承認済みのフォロワー） */
+  canViewRecords: boolean
 }
 
 export type NotificationType =

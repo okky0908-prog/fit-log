@@ -12,6 +12,9 @@ import type {
   NotificationItem,
   Page,
   UnreadCount,
+  FollowStatus,
+  Profile,
+  UserListItem,
 } from './types'
 import type { WorkoutInput } from '../validation/workout'
 
@@ -300,8 +303,7 @@ export function deleteExercise(id: number): Promise<void> {
 
 /** A-120 通知一覧（新しい順に20件）。続きは、前のページの nextCursor を渡す */
 export function fetchNotifications(cursor?: string): Promise<Page<NotificationItem>> {
-  const query = cursor === undefined ? '' : `?${new URLSearchParams({ cursor })}`
-  return apiFetch(`/api/notifications${query}`, { auth: true })
+  return apiFetch(`/api/notifications${cursorQuery(cursor)}`, { auth: true })
 }
 
 /** A-121 未読の数と、フォローのリクエストの数 */
@@ -312,4 +314,39 @@ export function fetchUnreadCount(): Promise<UnreadCount> {
 /** A-122 表示した通知を既読にする（50件まで）。自分の未読の通知だけが既読になる */
 export function markNotificationsRead(ids: number[]): Promise<void> {
   return apiFetch('/api/notifications/read', { method: 'POST', body: { ids }, auth: true })
+}
+
+// ===== フォロー・プロフィール（A-70〜A-73・A-80） =====
+
+function userPath(username: string): string {
+  return `/api/users/${encodeURIComponent(username)}`
+}
+
+/** A-70 フォロー（鍵アカウントならリクエスト）。すでにフォロー中・リクエスト中なら今の状態が返る */
+export function followUser(username: string): Promise<{ followStatus: FollowStatus }> {
+  return apiFetch(`${userPath(username)}/follow`, { method: 'POST', auth: true })
+}
+
+/** A-71 フォロー解除・リクエストの取り消し */
+export function unfollowUser(username: string): Promise<{ followStatus: FollowStatus }> {
+  return apiFetch(`${userPath(username)}/follow`, { method: 'DELETE', auth: true })
+}
+
+/** A-72 フォロー中一覧（フォローした新しい順に20件）。続きは、前のページの nextCursor を渡す */
+export function fetchFollowing(username: string, cursor?: string): Promise<Page<UserListItem>> {
+  return apiFetch(`${userPath(username)}/following${cursorQuery(cursor)}`, { auth: true })
+}
+
+/** A-73 フォロワー一覧 */
+export function fetchFollowers(username: string, cursor?: string): Promise<Page<UserListItem>> {
+  return apiFetch(`${userPath(username)}/followers${cursorQuery(cursor)}`, { auth: true })
+}
+
+/** A-80 プロフィール */
+export function fetchProfile(username: string): Promise<Profile> {
+  return apiFetch(userPath(username), { auth: true })
+}
+
+function cursorQuery(cursor?: string): string {
+  return cursor === undefined ? '' : `?${new URLSearchParams({ cursor })}`
 }

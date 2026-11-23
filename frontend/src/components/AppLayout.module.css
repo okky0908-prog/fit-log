@@ -96,14 +96,12 @@
 }
 
 .avatar {
-  width: 32px;
-  height: 32px;
+  display: flex;
+  padding: 0;
   border: none;
   border-radius: 50%;
-  background: var(--color-primary-surface);
-  color: var(--color-primary-hover);
+  background: none;
   font: inherit;
-  font-weight: 700;
   cursor: pointer;
 }
 
@@ -120,8 +118,13 @@
   list-style: none;
 }
 
+.menu a,
 .menu button {
+  display: block;
+  box-sizing: border-box;
   width: 100%;
+  color: inherit;
+  text-decoration: none;
   padding: 8px 12px;
   border: none;
   background: none;
@@ -130,6 +133,7 @@
   cursor: pointer;
 }
 
+.menu a:hover,
 .menu button:hover {
   background: var(--color-background);
 }

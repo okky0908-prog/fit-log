@@ -2,9 +2,11 @@ import { Navigate, type RouteObject } from 'react-router'
 import { AppLayout } from '../components/AppLayout'
 import { PublicOnly, RequireAuth } from '../components/RouteGuards'
 import { ErrorPage } from './ErrorPage'
+import { FollowListPage } from './FollowListPage'
 import { HomePage } from './HomePage'
 import { LoginPage } from './LoginPage'
 import { NotificationsPage } from './NotificationsPage'
+import { ProfilePage } from './ProfilePage'
 import { SignupPage } from './SignupPage'
 import { VerifyEmailPage } from './VerifyEmailPage'
 import { WorkoutDetailPage } from './WorkoutDetailPage'
@@ -40,6 +42,15 @@ export const routes: RouteObject[] = [
               { path: '/workouts/:workoutId', element: <WorkoutDetailPage /> },
               { path: '/workouts/:workoutId/edit', element: <WorkoutEditorPage /> },
               { path: '/notifications', element: <NotificationsPage /> },
+              { path: '/users/:username', element: <ProfilePage /> },
+              {
+                path: '/users/:username/following',
+                element: <FollowListPage key="following" kind="following" />,
+              },
+              {
+                path: '/users/:username/followers',
+                element: <FollowListPage key="followers" kind="followers" />,
+              },
             ],
           },
         ],

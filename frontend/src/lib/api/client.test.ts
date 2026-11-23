@@ -521,3 +521,42 @@ describe('通知（A-120〜A-122）', () => {
     expect(JSON.parse(call(1).init.body as string)).toEqual({ ids: [3, 1] })
   })
 })
+
+describe('フォロー・プロフィール（A-70〜A-73・A-80）', () => {
+  test('フォローは POST・解除は DELETE で、ユーザー名を URL に入れる（記号は符号化する）', async () => {
+    await loggedIn()
+    fetchMock
+      .mockResolvedValueOnce(json(200, { followStatus: 'requested' }))
+      .mockResolvedValueOnce(json(200, { followStatus: 'none' }))
+
+    await expect(client.followUser('sato_1')).resolves.toEqual({ followStatus: 'requested' })
+    await expect(client.unfollowUser('a/b')).resolves.toEqual({ followStatus: 'none' })
+
+    expect(call(1).url).toBe('/api/users/sato_1/follow')
+    expect(call(1).init.method).toBe('POST')
+    expect(call(2).url).toBe('/api/users/a%2Fb/follow')
+    expect(call(2).init.method).toBe('DELETE')
+    expect(authorization(2)).toBe('Bearer access-1')
+  })
+
+  test('一覧は、最初はカーソルなしで、続きはカーソルを URL の条件にする', async () => {
+    await loggedIn()
+    const page = { items: [], nextCursor: null, hasNext: false }
+    fetchMock.mockResolvedValueOnce(json(200, page)).mockResolvedValueOnce(json(200, page))
+
+    await expect(client.fetchFollowing('sato')).resolves.toEqual(page)
+    await client.fetchFollowers('sato', 'abc_-1')
+
+    expect(call(1).url).toBe('/api/users/sato/following')
+    expect(call(2).url).toBe('/api/users/sato/followers?cursor=abc_-1')
+  })
+
+  test('プロフィール', async () => {
+    await loggedIn()
+    fetchMock.mockResolvedValueOnce(json(200, { username: 'sato' }))
+
+    await expect(client.fetchProfile('sato')).resolves.toEqual({ username: 'sato' })
+
+    expect(call(1).url).toBe('/api/users/sato')
+  })
+})
