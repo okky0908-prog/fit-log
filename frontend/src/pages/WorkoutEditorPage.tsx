@@ -22,8 +22,9 @@ import {
   fetchWorkout,
   updateWorkout,
 } from '../lib/api/client'
-import type { Exercise, Workout } from '../lib/api/types'
+import type { Exercise, RecordType, Workout } from '../lib/api/types'
 import { useAuth } from '../lib/auth/authContext'
+import { clearDraft, loadDraft, saveDraft } from '../lib/draft/workoutDraft'
 import { tokyoDate } from '../lib/format/date'
 import { shrinkImage, UNUSABLE_IMAGE_MESSAGE, UnusableImageError } from '../lib/image/shrink'
 import { bodyPartLabel, type Units } from '../lib/format/workout'
@@ -56,7 +57,7 @@ const FORM_FIELDS =
 /**
  * S-13 記録の作成（`/workouts/new`）・編集（`/workouts/:workoutId/edit`）。docs/screens.md。
  *
- * 書きかけの一時保存・自分専用の種目の追加と変更・「種目を変える」・セットの並べ替え（9-4）、
+ * 自分専用の種目の追加と変更（9-5）、
  * テンプレート・前回の記録の呼び出し（段階 4）は、それぞれの PR で足す
  */
 export function WorkoutEditorPage() {
@@ -116,6 +117,7 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
     handleSubmit,
     getValues,
     setError,
+    reset,
     formState: { errors, isValid, isDirty, isSubmitting },
   } = useForm<WorkoutForm>({
     resolver,
@@ -127,7 +129,19 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
   })
   const exercises = useFieldArray({ control, name: 'exercises' })
   const images = useImages(workout)
-  const [picking, setPicking] = useState(false)
+  // 種目の選択：足す（add）か、index 番目の種目を記録方式が同じ種目に変える（change）
+  const [picker, setPicker] = useState<
+    { mode: 'add' } | { mode: 'change'; index: number; recordType: RecordType } | null
+  >(null)
+  const username = user?.username ?? ''
+  // 書きかけの一時保存（作成だけ）。前の書きかけがあれば、続けるか破棄するかを聞くまで保存しない（上書きしないように）
+  const [pendingDraft, setPendingDraft] = useState(() => (workout ? null : loadDraft(username)))
+  const values = useWatch({ control })
+  useEffect(() => {
+    if (!workout && pendingDraft === null && isDirty) {
+      saveDraft(username, getValues())
+    }
+  }, [values, workout, pendingDraft, isDirty, username, getValues])
   const [confirmingClose, setConfirmingClose] = useState(false)
   const navigate = useNavigate()
   const goBack = useGoBack()
@@ -136,7 +150,19 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
 
   const bodyLength = countCharacters(normalizeBody(useWatch({ control, name: 'body' })))
 
-  function addExercise(exercise: Exercise) {
+  function selectExercise(exercise: Exercise) {
+    if (picker?.mode === 'change') {
+      // セットの値はそのまま使う（記録方式が同じ種目だけを選べる）
+      exercises.update(picker.index, {
+        ...getValues(`exercises.${picker.index}`),
+        exerciseId: exercise.id,
+        name: exercise.name,
+        bodyPart: exercise.bodyPart,
+        isRunning: exercise.isRunning,
+      })
+      setPicker(null)
+      return
+    }
     exercises.append(
       {
         exerciseId: exercise.id,
@@ -149,7 +175,7 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
       // 新しい欄に自動で移らない。移ると、ほかを押しただけで「触った欄」になり、まだ入力していない欄にエラーが出る
       { shouldFocus: false },
     )
-    setPicking(false)
+    setPicker(null)
   }
 
   const submit = handleSubmit(async (form) => {
@@ -163,6 +189,7 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
           )
         : await createWorkout(input, images.newBlobs())
       queryClient.setQueryData(['workout', saved.id], saved)
+      if (!workout) clearDraft(username)
       toast(savedMessage(saved, workout ? '記録を保存しました' : '記録を投稿しました'))
       // 作成・編集の画面は履歴に残さない（詳細から「戻る」で作成の画面に戻らないように）
       void navigate(`/workouts/${saved.id}`, { replace: true })
@@ -216,6 +243,36 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
         </button>
       </div>
 
+      {pendingDraft && (
+        <div className={styles.draft}>
+          <p>書きかけの記録があります。続きから入力しますか？</p>
+          <p className={styles.draftNote}>画像は選び直してください</p>
+          <div className={styles.draftActions}>
+            <button
+              type="button"
+              className="button-primary"
+              onClick={() => {
+                // 初期値は空のままにして、書きかけを「入力した内容」として入れる（閉じるときに確かめるため）
+                reset(pendingDraft, { keepDefaultValues: true })
+                setPendingDraft(null)
+              }}
+            >
+              続ける
+            </button>
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={() => {
+                clearDraft(username)
+                setPendingDraft(null)
+              }}
+            >
+              破棄する
+            </button>
+          </div>
+        </div>
+      )}
+
       <form id="workout-form" className={styles.form} onSubmit={(e) => void submit(e)} noValidate>
         <div className={styles.row}>
           <label htmlFor="performedOn">実施日</label>
@@ -260,10 +317,13 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
             getSets={() => getValues(`exercises.${index}.sets`)}
             onMove={(to) => exercises.move(index, to)}
             onRemove={() => exercises.remove(index)}
+            onChangeExercise={() =>
+              setPicker({ mode: 'change', index, recordType: field.recordType })
+            }
           />
         ))}
         <FieldError message={arrayError(errors.exercises)} />
-        <button type="button" className={styles.add} onClick={() => setPicking(true)}>
+        <button type="button" className={styles.add} onClick={() => setPicker({ mode: 'add' })}>
           ＋ 種目を追加
         </button>
 
@@ -309,12 +369,21 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
         </fieldset>
       </form>
 
-      {picking && <ExercisePicker onSelect={addExercise} onClose={() => setPicking(false)} />}
+      {picker && (
+        <ExercisePicker
+          onSelect={selectExercise}
+          onClose={() => setPicker(null)}
+          recordType={picker.mode === 'change' ? picker.recordType : undefined}
+        />
+      )}
       {confirmingClose && (
         <ConfirmDialog
           title="入力中の記録は保存されません。閉じますか？"
           confirmLabel="閉じる（入力を捨てる）"
-          onConfirm={goBack}
+          onConfirm={() => {
+            if (!workout) clearDraft(username)
+            goBack()
+          }}
           onCancel={() => setConfirmingClose(false)}
         />
       )}
@@ -445,6 +514,7 @@ interface ExerciseFieldsProps {
   getSets: () => SetForm[]
   onMove: (to: number) => void
   onRemove: () => void
+  onChangeExercise: () => void
 }
 
 /** セットの列の見出し（記録方式で変わる） */
@@ -466,7 +536,10 @@ function ExerciseFields({
   getSets,
   onMove,
   onRemove,
+  onChangeExercise,
 }: ExerciseFieldsProps) {
+  // メニューを開いているセット（「上へ」「下へ」）
+  const [setMenu, setSetMenu] = useState<number | null>(null)
   const sets = useFieldArray({ control, name: `exercises.${index}.sets` })
   // 種目・セットを足すと、React Hook Form は一覧全体を確かめ直し、まだ触っていない欄にもエラーを入れる。
   // 触った欄・投稿しようとしたあと・サーバーのエラーだけを出す
@@ -508,6 +581,14 @@ function ExerciseFields({
       <div className={styles.exerciseHead}>
         <h2 className={styles.exerciseName}>■ {title}</h2>
         <div className={styles.tools}>
+          <button
+            type="button"
+            aria-label="種目を変える"
+            title="種目を変える"
+            onClick={onChangeExercise}
+          >
+            ⇄
+          </button>
           <button
             type="button"
             aria-label="上へ"
@@ -561,6 +642,40 @@ function ExerciseFields({
                 {field(j, 'distance', `距離（${units.distanceUnit}）`)}
               </>
             )}
+            <div className={styles.setMenu}>
+              <button
+                type="button"
+                className={styles.removeSet}
+                aria-label={`${j + 1}セット目のメニュー`}
+                aria-haspopup="menu"
+                aria-expanded={setMenu === j}
+                onClick={() => setSetMenu(setMenu === j ? null : j)}
+              >
+                ⋮
+              </button>
+              {setMenu === j && (
+                <ul role="menu" className={styles.setMenuList}>
+                  {[
+                    { label: '上へ', to: j - 1 },
+                    { label: '下へ', to: j + 1 },
+                  ].map((item) => (
+                    <li key={item.label} role="none">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        disabled={item.to < 0 || item.to >= sets.fields.length}
+                        onClick={() => {
+                          sets.move(j, item.to)
+                          setSetMenu(null)
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             <button
               type="button"
               className={styles.removeSet}

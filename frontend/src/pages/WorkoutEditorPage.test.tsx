@@ -78,6 +78,7 @@ beforeEach(() => {
   vi.mocked(shrinkImage).mockImplementation(
     async (file) => new Blob([`shrunk:${file.name}`], { type: 'image/jpeg' }),
   )
+  localStorage.clear()
   startAs(ME)
 })
 
@@ -547,5 +548,209 @@ describe('画像', () => {
     expect(id).toBe(12)
     expect(input.keepImageIds).toEqual([3, 7])
     expect(await sentNames(images ?? [])).toEqual(['new.jpg'])
+  })
+})
+
+describe('書きかけの一時保存', () => {
+  const KEY = `fitlog:workout-draft:${ME.username}`
+
+  async function writeSomething() {
+    await addExercise('ベンチプレス')
+    await fill('1セット目の重量（kg）', '60')
+    await fill('1セット目の回数', '10')
+    await fill('ひとこと', '書きかけ')
+  }
+
+  test('入力のたびに保存し、次に開いたとき「続ける」で戻せる。画像は選び直すと伝える', async () => {
+    const first = renderApp('/workouts/new')
+    await screen.findByRole('heading', { name: '新しい記録' })
+    await writeSomething()
+    expect(JSON.parse(localStorage.getItem(KEY) ?? 'null')).toMatchObject({ body: '書きかけ' })
+    first.unmount()
+
+    renderApp('/workouts/new')
+
+    expect(
+      await screen.findByText('書きかけの記録があります。続きから入力しますか？'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('画像は選び直してください')).toBeInTheDocument()
+    expect(screen.getByLabelText('ひとこと')).toHaveValue('')
+    await userEvent.click(screen.getByRole('button', { name: '続ける' }))
+
+    expect(screen.queryByText(/書きかけの記録があります/)).not.toBeInTheDocument()
+    expect(screen.getByLabelText('ひとこと')).toHaveValue('書きかけ')
+    expect(screen.getByLabelText('1セット目の重量（kg）')).toHaveValue('60')
+    expect(screen.getByRole('button', { name: '投稿する' })).toBeEnabled()
+  })
+
+  test('「続ける」で戻したあとは、何も変えずに × を押しても確かめる（書きかけは入力中の内容）', async () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        performedOn: '2026-11-21',
+        durationMin: '',
+        body: '前の書きかけ',
+        visibility: 'public',
+        exercises: [],
+      }),
+    )
+    renderApp('/workouts/new')
+    await userEvent.click(await screen.findByRole('button', { name: '続ける' }))
+
+    await userEvent.click(screen.getByRole('button', { name: '閉じる' }))
+
+    expect(
+      screen.getByRole('dialog', { name: '入力中の記録は保存されません。閉じますか？' }),
+    ).toBeInTheDocument()
+  })
+
+  test('「破棄する」で消し、空のまま始める', async () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        performedOn: '2026-11-21',
+        durationMin: '',
+        body: '前の書きかけ',
+        visibility: 'public',
+        exercises: [],
+      }),
+    )
+    renderApp('/workouts/new')
+
+    await userEvent.click(await screen.findByRole('button', { name: '破棄する' }))
+
+    expect(localStorage.getItem(KEY)).toBeNull()
+    expect(screen.queryByText(/書きかけの記録があります/)).not.toBeInTheDocument()
+    expect(screen.getByLabelText('ひとこと')).toHaveValue('')
+  })
+
+  test('案内に答えるまでは、入力しても前の書きかけを上書きしない', async () => {
+    const saved = JSON.stringify({
+      performedOn: '2026-11-21',
+      durationMin: '',
+      body: '前の書きかけ',
+      visibility: 'public',
+      exercises: [],
+    })
+    localStorage.setItem(KEY, saved)
+    renderApp('/workouts/new')
+    await screen.findByText(/書きかけの記録があります/)
+
+    await fill('ひとこと', '新しい入力')
+
+    expect(localStorage.getItem(KEY)).toBe(saved)
+  })
+
+  test('投稿したら消す', async () => {
+    vi.mocked(api.createWorkout).mockResolvedValue(SAVED)
+    renderApp('/workouts/new')
+    await screen.findByRole('heading', { name: '新しい記録' })
+    await writeSomething()
+
+    await userEvent.click(screen.getByRole('button', { name: '投稿する' }))
+
+    await screen.findByText('記録を投稿しました')
+    expect(localStorage.getItem(KEY)).toBeNull()
+  })
+
+  test('× で入力を捨てて閉じたら消す', async () => {
+    renderApp('/workouts/new')
+    await screen.findByRole('heading', { name: '新しい記録' })
+    await writeSomething()
+
+    await userEvent.click(screen.getByRole('button', { name: '閉じる' }))
+    await userEvent.click(screen.getByRole('button', { name: '閉じる（入力を捨てる）' }))
+
+    await screen.findByRole('heading', { name: 'ホーム' })
+    expect(localStorage.getItem(KEY)).toBeNull()
+  })
+
+  test('編集では一時保存しない（案内も出さない）', async () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        performedOn: '2026-11-21',
+        durationMin: '',
+        body: '作成の書きかけ',
+        visibility: 'public',
+        exercises: [],
+      }),
+    )
+    renderApp('/workouts/5/edit')
+    await screen.findByRole('heading', { name: '記録を編集' })
+
+    await fill('ひとこと', '編集中')
+
+    expect(screen.queryByText(/書きかけの記録があります/)).not.toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem(KEY) ?? 'null')).toMatchObject({
+      body: '作成の書きかけ',
+    })
+  })
+
+  test('ほかのユーザーの書きかけは出さない', async () => {
+    localStorage.setItem(
+      'fitlog:workout-draft:sato',
+      JSON.stringify({
+        performedOn: '2026-11-21',
+        durationMin: '',
+        body: '佐藤さんの書きかけ',
+        visibility: 'public',
+        exercises: [],
+      }),
+    )
+    renderApp('/workouts/new')
+    await screen.findByRole('heading', { name: '新しい記録' })
+
+    expect(screen.queryByText(/書きかけの記録があります/)).not.toBeInTheDocument()
+  })
+})
+
+describe('種目を変える・セットの並べ替え', () => {
+  test('種目を変えると、記録方式が同じ種目だけから選べ、セットはそのまま', async () => {
+    vi.mocked(api.searchExercises).mockResolvedValue([
+      BENCH,
+      PUSH_UP,
+      { ...BENCH, id: 3, name: 'ダンベルプレス' },
+    ])
+    renderApp('/workouts/new')
+    await screen.findByRole('heading', { name: '新しい記録' })
+    await addExercise('ベンチプレス')
+    await fill('1セット目の重量（kg）', '30')
+    await fill('1セット目の回数', '12')
+
+    await userEvent.click(screen.getByRole('button', { name: '種目を変える' }))
+    const picker = await screen.findByRole('dialog', { name: '種目を選ぶ' })
+    expect(
+      await within(picker).findByRole('button', { name: 'ダンベルプレス' }),
+    ).toBeInTheDocument()
+    expect(within(picker).queryByRole('button', { name: '腕立て伏せ' })).not.toBeInTheDocument()
+    await userEvent.click(within(picker).getByRole('button', { name: 'ダンベルプレス' }))
+
+    expect(screen.getByRole('region', { name: 'ダンベルプレス（胸）' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'ベンチプレス（胸）' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('1セット目の重量（kg）')).toHaveValue('30')
+    expect(screen.getByLabelText('1セット目の回数')).toHaveValue('12')
+  })
+
+  test('セットのメニューの「上へ」「下へ」で並べ替える。端は押せない', async () => {
+    renderApp('/workouts/new')
+    await screen.findByRole('heading', { name: '新しい記録' })
+    await addExercise('腕立て伏せ')
+    await fill('1セット目の回数', '10')
+    await userEvent.click(screen.getByRole('button', { name: '＋ セットを追加' }))
+    await fill('2セット目の回数', '20')
+
+    await userEvent.click(screen.getByRole('button', { name: '1セット目のメニュー' }))
+    expect(screen.getByRole('menuitem', { name: '上へ' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('menuitem', { name: '下へ' }))
+
+    expect(screen.getByLabelText('1セット目の回数')).toHaveValue('20')
+    expect(screen.getByLabelText('2セット目の回数')).toHaveValue('10')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: '2セット目のメニュー' }))
+    expect(screen.getByRole('menuitem', { name: '下へ' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('menuitem', { name: '上へ' }))
+    expect(screen.getByLabelText('1セット目の回数')).toHaveValue('10')
   })
 })

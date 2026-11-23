@@ -230,7 +230,64 @@
   padding-top: 0;
 }
 
-/* 見出しの行で、セットの「×」の幅をあける */
+/* 見出しの行で、セットの「⋮」「×」の幅をあける */
 .removeSpace {
-  width: 2.25em;
+  width: 4.5em;
+}
+
+.draft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-warning-surface);
+}
+
+.draft p {
+  margin: 0;
+}
+
+.draftNote {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.draftActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.setMenu {
+  position: relative;
+}
+
+.setMenuList {
+  position: absolute;
+  right: 0;
+  z-index: 10;
+  min-width: 96px;
+  margin: 0;
+  padding: 4px 0;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  list-style: none;
+}
+
+.setMenuList button {
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.setMenuList button:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
 }
