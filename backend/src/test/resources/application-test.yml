@@ -5,6 +5,10 @@
 spring:
   datasource:
     url: jdbc:postgresql://testcontainers-not-imported.invalid:5432/fitlog
+    # テストでは、設定の組み合わせごとに Spring のアプリを起動して残しておく（使い回すため）。
+    # 1つのアプリが持つ接続を少なくして、テスト用の DB の接続の上限を超えないようにする（同時に使うのは数本）
+    hikari:
+      maximum-pool-size: 5
   # メールも同じ（手元の Mailpit に送らない）
   mail:
     host: testcontainers-not-imported.invalid
