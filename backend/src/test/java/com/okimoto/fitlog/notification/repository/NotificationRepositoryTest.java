@@ -173,6 +173,22 @@ class NotificationRepositoryTest {
     assertThat(dsl.fetchExists(NOTIFICATIONS, NOTIFICATIONS.ID.eq(kept))).isTrue();
   }
 
+  @Test
+  void 取り消しでは_その人からその人へのその種類の通知だけを消す() {
+    long target = follow(sato, me, NOW);
+    long otherActor = follow(suzuki, me, NOW);
+    long otherRecipient = follow(sato, suzuki, NOW);
+    long otherType = insert("follow_accepted", sato, me, null);
+
+    assertThat(notificationRepository.deleteFromActor(me, sato, "follow")).isEqualTo(1);
+    assertThat(notificationRepository.deleteFromActor(me, sato, "follow")).isZero();
+
+    assertThat(dsl.fetchExists(NOTIFICATIONS, NOTIFICATIONS.ID.eq(target))).isFalse();
+    for (long kept : new long[] {otherActor, otherRecipient, otherType}) {
+      assertThat(dsl.fetchExists(NOTIFICATIONS, NOTIFICATIONS.ID.eq(kept))).isTrue();
+    }
+  }
+
   private long like(long actor, long recipient, long workoutId, OffsetDateTime at) {
     return notificationRepository.insert(
         new NewNotification(recipient, actor, "like", workoutId, at));

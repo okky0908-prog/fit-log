@@ -43,6 +43,13 @@ public class UserRepository {
         .fetchSingle();
   }
 
+  /** ユーザー名で探す。大文字・小文字を区別しない（uq_users_username_lower の索引を使う） */
+  public Optional<UsersRecord> findByUsernameIgnoreCase(String username) {
+    return dsl.selectFrom(USERS)
+        .where(lower(USERS.USERNAME).eq(username.toLowerCase(Locale.ROOT)))
+        .fetchOptional();
+  }
+
   public Optional<UsersRecord> findByEmail(String email) {
     return dsl.selectFrom(USERS).where(USERS.EMAIL.eq(email)).fetchOptional();
   }
