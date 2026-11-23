@@ -31,7 +31,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * multipart の大きさの上限（docs/test-plan.md 5.1 の「画像」「リクエスト全体の大きさ」）。
+ * multipart の大きさの上限（docs/test-plan.md 5.1 の「画像」「リクエスト全体の大きさ」。A-20・A-82）。
  *
  * <p>MockMvc は multipart の大きさの上限（application.yml の
  * spring.servlet.multipart）を確かめないので、本物のサーバー（空いているポート）を立てて HTTP で送る
@@ -82,6 +82,35 @@ class WorkoutUploadLimitIntegrationTest {
 
     assertThat(response.statusCode()).isEqualTo(400);
     assertThat(json(response).get("errors").get(0).get("field").asString()).isEqualTo("images[1]");
+  }
+
+  @Test
+  void プロフィールの編集も_リクエスト全体が10MBを超えると413() throws Exception {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    part(out, "Content-Disposition: form-data; name=\"data\"\r\nContent-Type: application/json");
+    out.writeBytes(objectMapper.writeValueAsBytes(Map.of("displayName", "山田")));
+    out.writeBytes("\r\n".getBytes(StandardCharsets.UTF_8));
+    part(
+        out,
+        "Content-Disposition: form-data; name=\"icon\"; filename=\"icon.jpg\"\r\n"
+            + "Content-Type: image/jpeg");
+    out.writeBytes(TestImages.jpegOfSize(11 * 1024 * 1024));
+    out.writeBytes(("\r\n--" + BOUNDARY + "--\r\n").getBytes(StandardCharsets.UTF_8));
+
+    HttpResponse<String> response;
+    try (HttpClient client = HttpClient.newHttpClient()) {
+      response =
+          client.send(
+              HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/users/me"))
+                  .header("Content-Type", "multipart/form-data; boundary=" + BOUNDARY)
+                  .header("Authorization", me.bearer())
+                  .PUT(HttpRequest.BodyPublishers.ofByteArray(out.toByteArray()))
+                  .build(),
+              HttpResponse.BodyHandlers.ofString());
+    }
+
+    assertThat(response.statusCode()).isEqualTo(413);
+    assertThat(json(response).get("code").asString()).isEqualTo("PAYLOAD_TOO_LARGE");
   }
 
   private HttpResponse<String> post(List<byte[]> images) throws Exception {

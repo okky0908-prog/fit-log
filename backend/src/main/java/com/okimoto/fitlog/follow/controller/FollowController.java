@@ -4,7 +4,9 @@ import com.okimoto.fitlog.auth.config.AuthenticatedUser;
 import com.okimoto.fitlog.follow.calc.FollowRules;
 import com.okimoto.fitlog.follow.repository.FollowUserRow;
 import com.okimoto.fitlog.follow.service.FollowService;
+import com.okimoto.fitlog.image.service.ImageUrls;
 import java.util.List;
+import java.util.function.Function;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,9 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class FollowController {
 
   private final FollowService followService;
+  private final ImageUrls imageUrls;
 
-  public FollowController(FollowService followService) {
+  public FollowController(FollowService followService, ImageUrls imageUrls) {
     this.followService = followService;
+    this.imageUrls = imageUrls;
   }
 
   /**
@@ -37,7 +41,7 @@ public class FollowController {
    *
    * @param username ユーザー名
    * @param displayName 表示名
-   * @param iconUrl アイコンの URL（アイコンの保存を作るまでは null）
+   * @param iconUrl アイコンの署名付き URL。なければ null
    * @param isPrivate 鍵アカウントか
    * @param bio 自己紹介
    * @param followStatus 自分からこの人へのフォローの状態（none・requested・following）
@@ -52,11 +56,11 @@ public class FollowController {
       String followStatus,
       boolean me) {
 
-    static UserListItem from(FollowUserRow row) {
+    static UserListItem from(FollowUserRow row, Function<String, String> iconUrlOf) {
       return new UserListItem(
           row.username(),
           row.displayName(),
-          null,
+          iconUrlOf.apply(row.iconKey()),
           row.isPrivate(),
           row.bio(),
           FollowRules.followStatus(row.myStatus()),
@@ -73,9 +77,9 @@ public class FollowController {
    */
   public record PageResponse(List<UserListItem> items, String nextCursor, boolean hasNext) {
 
-    static PageResponse from(FollowService.Page page) {
+    static PageResponse from(FollowService.Page page, Function<String, String> iconUrlOf) {
       return new PageResponse(
-          page.items().stream().map(UserListItem::from).toList(),
+          page.items().stream().map(row -> UserListItem.from(row, iconUrlOf)).toList(),
           page.nextCursor(),
           page.nextCursor() != null);
     }
@@ -101,7 +105,8 @@ public class FollowController {
       @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable String username,
       @RequestParam(required = false) String cursor) {
-    return PageResponse.from(followService.following(user.id(), username, cursor));
+    return PageResponse.from(
+        followService.following(user.id(), username, cursor), imageUrls::iconUrlOf);
   }
 
   /** A-73 フォロワー一覧 */
@@ -110,6 +115,7 @@ public class FollowController {
       @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable String username,
       @RequestParam(required = false) String cursor) {
-    return PageResponse.from(followService.followers(user.id(), username, cursor));
+    return PageResponse.from(
+        followService.followers(user.id(), username, cursor), imageUrls::iconUrlOf);
   }
 }

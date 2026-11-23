@@ -6,6 +6,7 @@ import com.okimoto.fitlog.auth.service.AuthResult;
 import com.okimoto.fitlog.auth.service.AuthService;
 import com.okimoto.fitlog.common.controller.ApiException;
 import com.okimoto.fitlog.common.controller.ErrorCode;
+import com.okimoto.fitlog.image.service.ImageUrls;
 import jakarta.validation.Valid;
 import java.time.Duration;
 import org.springframework.http.HttpHeaders;
@@ -34,8 +35,11 @@ public class AuthController {
 
   private final AuthService authService;
   private final RefreshTokenProperties refreshTokenProperties;
+  private final ImageUrls imageUrls;
 
-  public AuthController(AuthService authService, RefreshTokenProperties refreshTokenProperties) {
+  public AuthController(
+      AuthService authService, RefreshTokenProperties refreshTokenProperties, ImageUrls imageUrls) {
+    this.imageUrls = imageUrls;
     this.authService = authService;
     this.refreshTokenProperties = refreshTokenProperties;
   }
@@ -58,7 +62,7 @@ public class AuthController {
   /** A-03 ログイン中のユーザー */
   @GetMapping("/me")
   public MeResponse me(@AuthenticationPrincipal AuthenticatedUser user) {
-    return MeResponse.from(authService.me(user.id()));
+    return MeResponse.from(authService.me(user.id()), imageUrls);
   }
 
   /**
@@ -96,7 +100,7 @@ public class AuthController {
         refreshTokenCookie(result.refreshToken(), refreshTokenProperties.expiration());
     return ResponseEntity.status(status)
         .header(HttpHeaders.SET_COOKIE, cookie.toString())
-        .body(AuthResponse.from(result));
+        .body(AuthResponse.from(result, imageUrls));
   }
 
   /**

@@ -4,6 +4,7 @@ import com.okimoto.fitlog.common.calc.Excerpt;
 import com.okimoto.fitlog.common.calc.JapanTime;
 import com.okimoto.fitlog.notification.repository.NotificationRow;
 import java.time.OffsetDateTime;
+import java.util.function.Function;
 
 /**
  * 通知（docs/api.md「Notification」）。文言（「〇〇さんがあなたの記録にコメントしました」）は画面が type から作る。
@@ -32,13 +33,16 @@ public record NotificationResponse(
   /** 本文の抜き出しの文字数 */
   static final int EXCERPT_LENGTH = 30;
 
-  /** 操作した人（docs/api.md「UserSummary」）。アイコン（iconUrl）はプロフィールの編集を作るまで null */
+  /** 操作した人（docs/api.md「UserSummary」） */
   public record Actor(String username, String displayName, String iconUrl, boolean isPrivate) {}
 
   /** 対象（投稿・コメント）。本文は先頭の30文字（超えたら「…」） */
   public record Target(long id, String bodyExcerpt) {}
 
-  static NotificationResponse from(NotificationRow row) {
+  /**
+   * @param iconUrlOf アイコンの S3 のキーから、署名付き URL を作る（なければ null）
+   */
+  static NotificationResponse from(NotificationRow row, Function<String, String> iconUrlOf) {
     return new NotificationResponse(
         row.id(),
         row.type(),
@@ -46,7 +50,11 @@ public record NotificationResponse(
         row.readAt() != null,
         row.actorUsername() == null
             ? null
-            : new Actor(row.actorUsername(), row.actorDisplayName(), null, row.actorPrivate()),
+            : new Actor(
+                row.actorUsername(),
+                row.actorDisplayName(),
+                iconUrlOf.apply(row.actorIconKey()),
+                row.actorPrivate()),
         row.workoutId() == null
             ? null
             : new Target(row.workoutId(), Excerpt.of(row.workoutBody(), EXCERPT_LENGTH)),

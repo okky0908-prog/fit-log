@@ -54,6 +54,21 @@ class UserRepositoryTest {
   }
 
   @Test
+  void プロフィールを変え_アイコンのキーがnullなら今のアイコンのまま() {
+    UsersRecord saved = userRepository.insert(newUser("yamada", "yamada@example.com"));
+    OffsetDateTime later = saved.getUpdatedAt().plusHours(1);
+
+    userRepository.updateProfile(saved.getId(), "山田", "自己紹介", "icons/a.png", later);
+    userRepository.updateProfile(saved.getId(), "山田太郎", null, null, later.plusHours(1));
+
+    UsersRecord updated = userRepository.findById(saved.getId()).orElseThrow();
+    assertThat(updated.getDisplayName()).isEqualTo("山田太郎");
+    assertThat(updated.getBio()).isNull();
+    assertThat(updated.getIconKey()).isEqualTo("icons/a.png");
+    assertThat(updated.getUpdatedAt()).isAtSameInstantAs(later.plusHours(1));
+  }
+
+  @Test
   void メールアドレスとIDで探せる() {
     UsersRecord saved = userRepository.insert(newUser("yamada", "yamada@example.com"));
 

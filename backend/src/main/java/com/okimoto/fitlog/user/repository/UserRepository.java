@@ -73,6 +73,24 @@ public class UserRepository {
         .isPresent();
   }
 
+  /**
+   * プロフィール（表示名・自己紹介・アイコン）を変える。
+   *
+   * @param iconKey 新しいアイコンの S3 のキー。null なら今のアイコンのまま
+   */
+  public void updateProfile(
+      long id, String displayName, String bio, String iconKey, OffsetDateTime now) {
+    var update =
+        dsl.update(USERS)
+            .set(USERS.DISPLAY_NAME, displayName)
+            .set(USERS.BIO, bio)
+            .set(USERS.UPDATED_AT, now);
+    if (iconKey != null) {
+      update = update.set(USERS.ICON_KEY, iconKey);
+    }
+    update.where(USERS.ID.eq(id)).execute();
+  }
+
   /** メールアドレスを確認済みにする。すでに確認済みなら、最初に確認した日時のままにする */
   public void markEmailVerified(long id, OffsetDateTime now) {
     dsl.update(USERS)

@@ -1,6 +1,7 @@
 package com.okimoto.fitlog.auth.controller;
 
 import com.okimoto.fitlog.auth.service.AuthResult;
+import com.okimoto.fitlog.image.service.ImageUrls;
 
 /**
  * 新規登録・ログインのレスポンス（A-01・A-02）。
@@ -10,7 +11,7 @@ import com.okimoto.fitlog.auth.service.AuthResult;
  */
 public record AuthResponse(String accessToken, MeResponse user) {
 
-  static AuthResponse from(AuthResult result) {
-    return new AuthResponse(result.accessToken(), MeResponse.from(result.user()));
+  static AuthResponse from(AuthResult result, ImageUrls imageUrls) {
+    return new AuthResponse(result.accessToken(), MeResponse.from(result.user(), imageUrls));
   }
 }

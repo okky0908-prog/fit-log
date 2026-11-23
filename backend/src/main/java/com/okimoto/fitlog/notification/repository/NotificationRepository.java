@@ -71,6 +71,7 @@ public class NotificationRepository {
             ACTOR.USERNAME,
             ACTOR.DISPLAY_NAME,
             ACTOR.IS_PRIVATE,
+            ACTOR.ICON_KEY,
             WORKOUTS.ID,
             WORKOUTS.BODY)
         .from(NOTIFICATIONS)

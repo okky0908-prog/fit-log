@@ -66,6 +66,11 @@ public class ImageUrls {
         .toString();
   }
 
+  /** アイコンの URL。アイコンがなければ null（画面は表示名の頭文字を出す）。アイコンは誰に見せてもよいので、閲覧の判定はしない */
+  public String iconUrlOf(String key) {
+    return key == null ? null : urlOf(key);
+  }
+
   /** LocalStack はバケットをパスに入れる形、AWS の S3 はバケットをホスト名に入れる形 */
   private URI objectUri(String key) {
     if (properties.usesCustomEndpoint()) {

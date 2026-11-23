@@ -139,6 +139,7 @@ public class FollowRepository {
             USERS.USERNAME,
             USERS.DISPLAY_NAME,
             USERS.IS_PRIVATE,
+            USERS.ICON_KEY,
             USERS.BIO,
             MINE.STATUS,
             field(USERS.ID.eq(me)))
