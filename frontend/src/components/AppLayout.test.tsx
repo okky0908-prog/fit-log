@@ -83,6 +83,17 @@ test('未読の数を取れなくても、ほかの部分は使える（数を�
   expect(screen.getByRole('heading', { name: 'ホーム' })).toBeInTheDocument()
 })
 
+test('アイコンのメニューから自分のプロフィールへ移る', async () => {
+  vi.mocked(api.fetchProfile).mockReturnValue(new Promise(() => {}))
+  const { router } = renderApp('/')
+
+  await userEvent.click(await screen.findByRole('button', { name: '自分のメニュー' }))
+  await userEvent.click(screen.getByRole('menuitem', { name: 'プロフィール' }))
+
+  expect(router.state.location.pathname).toBe(`/users/${ME.username}`)
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+})
+
 test('アイコンのメニューからログアウトする', async () => {
   vi.mocked(api.logout).mockResolvedValue(undefined)
   renderApp('/')

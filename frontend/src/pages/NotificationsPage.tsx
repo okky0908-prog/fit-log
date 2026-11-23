@@ -1,6 +1,8 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
+import { Avatar } from '../components/Avatar'
+import { LoadMore } from '../components/LoadMore'
 import { errorMessage, fetchNotifications, markNotificationsRead } from '../lib/api/client'
 import type { NotificationItem } from '../lib/api/types'
 import {
@@ -93,9 +95,13 @@ function NotificationRow({ item, now }: { item: NotificationItem; now: Date }) {
           <span className="visually-hidden">未読</span>
         </span>
       )}
-      <span className={styles.avatar} aria-hidden="true">
-        {item.actor ? item.actor.displayName.slice(0, 1) : '🎯'}
-      </span>
+      {item.actor ? (
+        <Avatar displayName={item.actor.displayName} iconUrl={item.actor.iconUrl} size={36} />
+      ) : (
+        <span className={styles.avatar} aria-hidden="true">
+          🎯
+        </span>
+      )}
       <span className={styles.body}>
         <span className={styles.text}>
           {notificationMessage(item)}
@@ -111,30 +117,5 @@ function NotificationRow({ item, now }: { item: NotificationItem; now: Date }) {
     </Link>
   ) : (
     <div className={styles.row}>{content}</div>
-  )
-}
-
-/** 続きの読み込み。下までスクロールしたら読み込み、ボタンでも読み込める（キーボード・読み上げで使えるように） */
-function LoadMore({ loading, onLoad }: { loading: boolean; onLoad: () => void }) {
-  const ref = useRef<HTMLButtonElement>(null)
-  useEffect(() => {
-    const target = ref.current
-    if (!target || typeof IntersectionObserver === 'undefined') return
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting) && !loading) onLoad()
-    })
-    observer.observe(target)
-    return () => observer.disconnect()
-  }, [loading, onLoad])
-  return (
-    <button
-      ref={ref}
-      type="button"
-      className={`button-secondary ${styles.more}`}
-      disabled={loading}
-      onClick={onLoad}
-    >
-      {loading ? '読み込み中…' : 'さらに表示'}
-    </button>
   )
 }

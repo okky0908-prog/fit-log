@@ -1,8 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
+import { Avatar } from '../components/Avatar'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { ImageViewer } from '../components/ImageViewer'
+import { LockMark } from '../components/LockMark'
+import { UserLink } from '../components/UserLink'
 import { ApiError, deleteWorkout, errorMessage, fetchWorkout } from '../lib/api/client'
 import type { Visibility, Workout, WorkoutExercise } from '../lib/api/types'
 import { useAuth } from '../lib/auth/authContext'
@@ -89,18 +92,33 @@ function WorkoutView({ workout }: { workout: Workout }) {
   return (
     <article className={styles.card}>
       <header className={styles.head}>
-        <div>
-          <p className={styles.author}>
-            <span className={styles.displayName}>{workout.author.displayName}</span>
-            {workout.author.isPrivate && <Icon emoji="🔒" label="鍵アカウント" />}
-            <span className={styles.username}>@{workout.author.username}</span>
-          </p>
-          <p className={styles.meta}>
-            <span>{formatPerformedOn(workout.performedOn, now)}</span>
-            {postedAgo && <span>{postedAgo}</span>}
-            {workout.editedAt && <span>編集済み</span>}
-            <Icon emoji={visibility.icon} label={visibility.label} />
-          </p>
+        <div className={styles.byline}>
+          <UserLink username={workout.author.username} plain>
+            <Avatar
+              displayName={workout.author.displayName}
+              iconUrl={workout.author.iconUrl}
+              size={40}
+            />
+            {/* アイコンは読み上げないので、リンクの名前を補う */}
+            <span className="visually-hidden">{workout.author.displayName}のプロフィール</span>
+          </UserLink>
+          <div>
+            <p className={styles.author}>
+              <UserLink username={workout.author.username} className={styles.displayName}>
+                {workout.author.displayName}
+              </UserLink>
+              {workout.author.isPrivate && <LockMark />}
+              <UserLink username={workout.author.username} className={styles.username}>
+                @{workout.author.username}
+              </UserLink>
+            </p>
+            <p className={styles.meta}>
+              <span>{formatPerformedOn(workout.performedOn, now)}</span>
+              {postedAgo && <span>{postedAgo}</span>}
+              {workout.editedAt && <span>編集済み</span>}
+              <Icon emoji={visibility.icon} label={visibility.label} />
+            </p>
+          </div>
         </div>
         {workout.mine && <OwnerMenu workoutId={workout.id} />}
       </header>

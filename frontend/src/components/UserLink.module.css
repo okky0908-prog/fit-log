@@ -1,0 +1,14 @@
+.link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.plain {
+  display: inline-flex;
+  color: inherit;
+  text-decoration: none;
+}

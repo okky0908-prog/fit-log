@@ -71,6 +71,20 @@ describe('表示', () => {
     expect(within(rows[2]).queryByText('未読')).not.toBeInTheDocument()
   })
 
+  test('操作した人のアイコンがあれば画像を、なければ表示名の頭文字を出す', async () => {
+    vi.mocked(api.fetchNotifications).mockResolvedValue({
+      items: [{ ...LIKE, actor: { ...SATO, iconUrl: 'https://example.com/icon.png' } }, FOLLOW],
+      nextCursor: null,
+      hasNext: false,
+    })
+
+    renderApp('/notifications')
+
+    const avatars = await within(await screen.findByRole('main')).findAllByTestId('avatar')
+    expect(avatars[0]).toHaveAttribute('src', 'https://example.com/icon.png')
+    expect(avatars[1]).toHaveTextContent('佐')
+  })
+
   test('押すと対象の画面へ移る', async () => {
     vi.mocked(api.fetchNotifications).mockResolvedValue({
       items: [LIKE, FOLLOW],
