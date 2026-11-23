@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { errorMessage, fetchRecentExercises, searchExercises } from '../lib/api/client'
-import type { Exercise } from '../lib/api/types'
+import type { Exercise, RecordType } from '../lib/api/types'
 import { bodyPartLabel } from '../lib/format/workout'
 import styles from './ExercisePicker.module.css'
 
@@ -11,6 +11,8 @@ const BODY_PARTS = ['chest', 'back', 'legs', 'shoulders', 'arms', 'abs', 'full_b
 interface Props {
   onSelect: (exercise: Exercise) => void
   onClose: () => void
+  /** 「種目を変える」とき：この記録方式の種目だけを出す（セットの値をそのまま使えるように） */
+  recordType?: RecordType
 }
 
 /**
@@ -18,7 +20,7 @@ interface Props {
  * 名前と部位で絞り込みがないときは、一番上に最近使った種目（A-31）を出す。
  * 自分専用の種目の追加・変更・削除は 9-3 で足す
  */
-export function ExercisePicker({ onSelect, onClose }: Props) {
+export function ExercisePicker({ onSelect, onClose, recordType }: Props) {
   const [q, setQ] = useState('')
   const [bodyPart, setBodyPart] = useState<string | null>(null)
   // 打つたびに検索し直すと、前の結果がちらつくので、入力の反映を少し後回しにする
@@ -41,6 +43,10 @@ export function ExercisePicker({ onSelect, onClose }: Props) {
   }, [onClose])
 
   const filtering = deferredQ !== '' || bodyPart !== null
+  const usable = (exercises: Exercise[]) =>
+    recordType ? exercises.filter((exercise) => exercise.recordType === recordType) : exercises
+  const recentExercises = usable(recent.data ?? [])
+  const found = results.data && usable(results.data)
 
   return (
     <dialog open className={styles.picker} aria-label="種目を選ぶ">
@@ -74,11 +80,12 @@ export function ExercisePicker({ onSelect, onClose }: Props) {
         ))}
       </div>
 
+      {recordType && <p className={styles.note}>記録方式が同じ種目だけを出しています</p>}
       <div className={styles.list}>
-        {!filtering && recent.data && recent.data.length > 0 && (
+        {!filtering && recentExercises.length > 0 && (
           <section aria-label="最近使った種目">
             <h3 className={styles.group}>最近使った種目</h3>
-            {recent.data.map((exercise) => (
+            {recentExercises.map((exercise) => (
               <button
                 key={exercise.id}
                 type="button"
@@ -92,12 +99,12 @@ export function ExercisePicker({ onSelect, onClose }: Props) {
         )}
         {results.error ? (
           <p className={styles.message}>{errorMessage(results.error)}</p>
-        ) : !results.data ? (
+        ) : !found ? (
           <p className={styles.message}>読み込み中…</p>
-        ) : results.data.length === 0 ? (
+        ) : found.length === 0 ? (
           <p className={styles.message}>見つかりませんでした</p>
         ) : (
-          groupByBodyPart(results.data).map(([part, exercises]) => (
+          groupByBodyPart(found).map(([part, exercises]) => (
             <section key={part} aria-label={bodyPartLabel(part)}>
               <h3 className={styles.group}>{bodyPartLabel(part)}</h3>
               {exercises.map((exercise) => (

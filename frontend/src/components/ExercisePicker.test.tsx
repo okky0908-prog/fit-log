@@ -34,10 +34,10 @@ const MINE: Exercise = {
 const onSelect = vi.fn<(exercise: Exercise) => void>()
 const onClose = vi.fn<() => void>()
 
-function renderPicker() {
+function renderPicker(recordType?: Exercise['recordType']) {
   return render(
     <QueryClientProvider client={createQueryClient()}>
-      <ExercisePicker onSelect={onSelect} onClose={onClose} />
+      <ExercisePicker onSelect={onSelect} onClose={onClose} recordType={recordType} />
     </QueryClientProvider>,
   )
 }
@@ -137,4 +137,30 @@ test('開いたら、検索の欄に移る', () => {
   renderPicker()
 
   expect(screen.getByRole('searchbox', { name: '種目を検索' })).toHaveFocus()
+})
+
+test('種目を変えるときは、記録方式が同じ種目だけを出す（最近使った種目も）', async () => {
+  vi.mocked(api.fetchRecentExercises).mockResolvedValue([PUSH_UP, SQUAT])
+  renderPicker('weight_reps')
+
+  expect(await screen.findByText('記録方式が同じ種目だけを出しています')).toBeInTheDocument()
+  const recent = await screen.findByRole('region', { name: '最近使った種目' })
+  expect(
+    within(recent)
+      .getAllByRole('button')
+      .map((b) => b.textContent),
+  ).toEqual(['スクワット（脚）'])
+  const chest = screen.getByRole('region', { name: '胸' })
+  expect(
+    within(chest)
+      .getAllByRole('button')
+      .map((b) => b.textContent),
+  ).toEqual(['ベンチプレス'])
+})
+
+test('記録方式が同じ種目が1つもなければ、見つからなかったと出す', async () => {
+  vi.mocked(api.searchExercises).mockResolvedValue([BENCH])
+  renderPicker('time_distance')
+
+  expect(await screen.findByText('見つかりませんでした')).toBeInTheDocument()
 })

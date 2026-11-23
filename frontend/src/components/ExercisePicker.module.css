@@ -112,3 +112,10 @@
   color: var(--color-text-muted);
   text-align: center;
 }
+
+.note {
+  margin: 0;
+  padding: 8px 16px 0;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
