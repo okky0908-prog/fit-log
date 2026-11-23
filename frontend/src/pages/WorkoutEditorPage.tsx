@@ -136,12 +136,13 @@ function WorkoutEditor({ workout }: { workout?: Workout }) {
   const username = user?.username ?? ''
   // 書きかけの一時保存（作成だけ）。前の書きかけがあれば、続けるか破棄するかを聞くまで保存しない（上書きしないように）
   const [pendingDraft, setPendingDraft] = useState(() => (workout ? null : loadDraft(username)))
-  const values = useWatch({ control })
+  // 入力の値（変わるたびに新しくなる）。すべての欄に初期値を入れているので、欠けた欄はない
+  const values = useWatch({ control }) as WorkoutForm
   useEffect(() => {
     if (!workout && pendingDraft === null && isDirty) {
-      saveDraft(username, getValues())
+      saveDraft(username, values)
     }
-  }, [values, workout, pendingDraft, isDirty, username, getValues])
+  }, [values, workout, pendingDraft, isDirty, username])
   const [confirmingClose, setConfirmingClose] = useState(false)
   const navigate = useNavigate()
   const goBack = useGoBack()
