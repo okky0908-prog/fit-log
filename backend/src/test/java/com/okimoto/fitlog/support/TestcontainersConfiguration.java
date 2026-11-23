@@ -31,8 +31,14 @@ import org.testcontainers.utility.DockerImageName;
 @TestConfiguration(proxyBeanMethods = false)
 public class TestcontainersConfiguration {
 
+  /**
+   * テスト用の PostgreSQL。テストでは設定の組み合わせごとに Spring のアプリを起動して残しておき、それぞれが接続を持つので、接続の上限を既定の 100
+   * から上げる（application-test.yml で、1つのアプリの接続も5本までにしている）
+   */
   private static final PostgreSQLContainer POSTGRES =
-      new PostgreSQLContainer(fitLogPostgresImage()).withDatabaseName("fitlog");
+      new PostgreSQLContainer(fitLogPostgresImage())
+          .withDatabaseName("fitlog")
+          .withCommand("postgres", "-c", "max_connections=200");
 
   /** Mailpit の SMTP（1025）と、届いたメールを見る API（8025） */
   private static final int MAILPIT_SMTP_PORT = 1025;
