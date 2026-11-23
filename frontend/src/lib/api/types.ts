@@ -16,6 +16,10 @@ export type ApiErrorCode =
   | 'SERVICE_UNAVAILABLE'
   | 'SERVER_BUSY'
   | 'WORKOUT_NOT_FOUND'
+  | 'EXERCISE_NOT_FOUND'
+  | 'EXERCISE_NAME_TAKEN'
+  | 'EXERCISE_LIMIT_EXCEEDED'
+  | 'EXERCISE_IN_USE'
   | 'FORBIDDEN'
   | (string & {})
 
