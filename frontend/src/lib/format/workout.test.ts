@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { bodyPartLabel, formatSet } from './workout'
+import type { ExerciseSummary } from '../api/types'
+import { bodyPartLabel, formatExerciseSummary, formatSet } from './workout'
 
 // 投稿詳細のセットの行（docs/screens.md S-12）
 
@@ -63,5 +64,80 @@ describe('部位の名前', () => {
 
   test('知らない値はそのまま', () => {
     expect(bodyPartLabel('unknown')).toBe('unknown')
+  })
+})
+
+// 投稿カードの種目の要約（docs/features.md「投稿カードに表示する内容」、docs/test-plan.md 5.4）
+
+const summary = (values: Partial<ExerciseSummary>): ExerciseSummary => ({
+  exerciseId: 1,
+  name: 'ベンチプレス',
+  recordType: 'weight_reps',
+  personalBest: false,
+  setCount: 3,
+  uniform: true,
+  weightKg: null,
+  reps: null,
+  totalReps: null,
+  durationSec: null,
+  distanceKm: null,
+  paceSecPerKm: null,
+  ...values,
+})
+
+describe('種目の要約', () => {
+  test('重量 × 回数：全セットが同じなら値とセット数、違えば最大のセット', () => {
+    expect(formatExerciseSummary(summary({ weightKg: 60, reps: 10 }), KG_KM)).toBe(
+      '60kg × 10回 × 3セット',
+    )
+    expect(formatExerciseSummary(summary({ uniform: false, weightKg: 100, reps: 5 }), KG_KM)).toBe(
+      '3セット（最大 100kg × 5回）',
+    )
+    // lb で見る人には lb で出す（61.235kg ＝ 135lb）
+    expect(formatExerciseSummary(summary({ weightKg: 61.235, reps: 8, setCount: 1 }), LB_MI)).toBe(
+      '135lb × 8回 × 1セット',
+    )
+  })
+
+  test('回数のみ：全セットが同じなら回数とセット数、違えば合計', () => {
+    const pushUp = { recordType: 'reps', name: '腕立て伏せ' } as const
+    expect(formatExerciseSummary(summary({ ...pushUp, reps: 20 }), KG_KM)).toBe('20回 × 3セット')
+    expect(
+      formatExerciseSummary(summary({ ...pushUp, uniform: false, totalReps: 55 }), KG_KM),
+    ).toBe('合計 55回（3セット）')
+  })
+
+  describe('時間・距離', () => {
+    const run = (values: Partial<ExerciseSummary>) =>
+      summary({
+        recordType: 'time_distance',
+        name: 'ランニング',
+        uniform: null,
+        setCount: 1,
+        ...values,
+      })
+
+    test('1回なら距離・時間・ペース', () => {
+      expect(
+        formatExerciseSummary(run({ durationSec: 1800, distanceKm: 5, paceSecPerKm: 360 }), KG_KM),
+      ).toBe('5.00km 30:00（6:00/km）')
+      // マイルで見る人には、マイルあたりのペース
+      expect(
+        formatExerciseSummary(run({ durationSec: 1800, distanceKm: 5, paceSecPerKm: 360 }), LB_MI),
+      ).toBe('3.11mi 30:00（9:39/mi）')
+    })
+
+    test('距離がなければ時間だけ', () => {
+      expect(formatExerciseSummary(run({ durationSec: 1800 }), KG_KM)).toBe('30:00')
+    })
+
+    test('2回以上なら合計と回数', () => {
+      expect(
+        formatExerciseSummary(run({ setCount: 2, durationSec: 3000, distanceKm: 8 }), KG_KM),
+      ).toBe('合計 8.00km 50:00（2回）')
+      expect(formatExerciseSummary(run({ setCount: 2, durationSec: 3000 }), KG_KM)).toBe(
+        '合計 50:00（2回）',
+      )
+    })
   })
 })

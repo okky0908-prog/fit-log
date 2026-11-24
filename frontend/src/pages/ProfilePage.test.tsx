@@ -2,14 +2,14 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import * as api from '../lib/api/client'
-import type { Profile } from '../lib/api/types'
+import type { Profile, WorkoutCard } from '../lib/api/types'
 import { ME, renderApp, startAs } from '../test/helpers'
 
 vi.mock('../lib/api/client', (original) =>
   import('../test/apiMock').then((m) => m.mockApiClient(original)),
 )
 
-// S-40 プロフィール（docs/screens.md）。公開している目標は段階 3、記録の一覧は 12 で足す
+// S-40 プロフィール（docs/screens.md）。公開している目標は段階 3 で足す
 
 function profile(values: Partial<Profile>): Profile {
   return {
@@ -39,6 +39,7 @@ beforeEach(() => {
   vi.mocked(api.fetchProfile).mockReset()
   vi.mocked(api.followUser).mockReset()
   vi.mocked(api.unfollowUser).mockReset()
+  vi.mocked(api.fetchUserWorkouts).mockReset()
   startAs(ME)
 })
 
@@ -201,5 +202,67 @@ describe('フォローボタン', () => {
 
     expect(await screen.findByText(api.NETWORK_ERROR_MESSAGE)).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('button', { name: 'フォローする' })).toBeEnabled())
+  })
+})
+
+describe('記録の一覧', () => {
+  function card(id: number, body: string): WorkoutCard {
+    return {
+      id,
+      author: { username: 'sato', displayName: '佐藤花子', iconUrl: null, isPrivate: false },
+      performedOn: '2026-11-14',
+      createdAt: '2026-11-14T19:00:00+09:00',
+      editedAt: null,
+      body,
+      visibility: 'public',
+      exerciseSummaries: [],
+      otherExerciseCount: 0,
+      images: [],
+      likeCount: 0,
+      likedByMe: false,
+      commentCount: 0,
+      mine: false,
+    }
+  }
+
+  test('その人の記録を投稿カードで出し、続きを読み込める', async () => {
+    vi.mocked(api.fetchProfile).mockResolvedValue(SATO)
+    vi.mocked(api.fetchUserWorkouts)
+      .mockResolvedValueOnce({ items: [card(1, '脚の日')], nextCursor: 'next', hasNext: true })
+      .mockResolvedValueOnce({ items: [card(2, '胸の日')], nextCursor: null, hasNext: false })
+    renderApp('/users/sato')
+
+    const records = await screen.findByRole('region', { name: '記録' })
+    expect(await within(records).findByRole('article')).toHaveTextContent('脚の日')
+    expect(api.fetchUserWorkouts).toHaveBeenCalledWith('sato', undefined)
+
+    await userEvent.click(within(records).getByRole('button', { name: 'さらに表示' }))
+    expect(await within(records).findByText('胸の日')).toBeInTheDocument()
+    expect(api.fetchUserWorkouts).toHaveBeenLastCalledWith('sato', 'next')
+  })
+
+  test('記録がなければ「まだ記録がありません」', async () => {
+    vi.mocked(api.fetchProfile).mockResolvedValue(SATO)
+    vi.mocked(api.fetchUserWorkouts).mockResolvedValue({
+      items: [],
+      nextCursor: null,
+      hasNext: false,
+    })
+    renderApp('/users/sato')
+
+    expect(await screen.findByText('まだ記録がありません')).toBeInTheDocument()
+  })
+
+  test('見る権限がなければ、記録の一覧を読み込まない', async () => {
+    vi.mocked(api.fetchProfile).mockResolvedValue(
+      profile({ isPrivate: true, canViewRecords: false }),
+    )
+    renderApp('/users/sato')
+
+    expect(
+      await screen.findByText('このアカウントの記録は、承認されたフォロワーだけが見られます'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: '記録' })).not.toBeInTheDocument()
+    expect(api.fetchUserWorkouts).not.toHaveBeenCalled()
   })
 })

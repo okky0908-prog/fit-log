@@ -67,3 +67,20 @@ a.count:hover {
   color: var(--color-text-muted);
   text-align: center;
 }
+
+.workouts {
+  margin-top: 16px;
+}
+
+.sectionTitle {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.workoutList {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
