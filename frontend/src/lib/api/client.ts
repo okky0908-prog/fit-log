@@ -8,6 +8,7 @@ import type {
   SignupInput,
   VerifyEmailResult,
   Workout,
+  WorkoutCard,
   Exercise,
   NotificationItem,
   Page,
@@ -345,6 +346,35 @@ export function fetchFollowers(username: string, cursor?: string): Promise<Page<
 /** A-80 プロフィール */
 export function fetchProfile(username: string): Promise<Profile> {
   return apiFetch(userPath(username), { auth: true })
+}
+
+// ===== タイムライン・記録の一覧（A-50〜A-53・A-81） =====
+
+/** タイムラインの種類（フォロー中・全体） */
+export type TimelineKind = 'following' | 'all'
+
+function timelinePath(kind: TimelineKind): string {
+  return kind === 'all' ? '/api/timeline/all' : '/api/timeline'
+}
+
+/** A-50・A-51 タイムライン（投稿日時の新しい順に20件）。続きは、前のページの nextCursor を渡す */
+export function fetchTimeline(kind: TimelineKind, cursor?: string): Promise<Page<WorkoutCard>> {
+  return apiFetch(`${timelinePath(kind)}${cursorQuery(cursor)}`, { auth: true })
+}
+
+/** A-52・A-53 since（1ページ目の一番新しい記録の ID）より後の、新しい投稿の件数（100件まで） */
+export function fetchNewPostCount(kind: TimelineKind, since: number): Promise<{ count: number }> {
+  return apiFetch(
+    `${timelinePath(kind)}/new-count?${new URLSearchParams({ since: String(since) })}`,
+    {
+      auth: true,
+    },
+  )
+}
+
+/** A-81 そのユーザーの記録一覧（実施日の新しい順に20件） */
+export function fetchUserWorkouts(username: string, cursor?: string): Promise<Page<WorkoutCard>> {
+  return apiFetch(`${userPath(username)}/workouts${cursorQuery(cursor)}`, { auth: true })
 }
 
 function cursorQuery(cursor?: string): string {

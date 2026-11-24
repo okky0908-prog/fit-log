@@ -561,6 +561,46 @@ describe('フォロー・プロフィール（A-70〜A-73・A-80）', () => {
   })
 })
 
+describe('タイムライン・記録の一覧（A-50〜A-53・A-81）', () => {
+  const page = { items: [], nextCursor: null, hasNext: false }
+
+  test('フォロー中と全体のタイムライン。続きはカーソルを付ける', async () => {
+    await loggedIn()
+    fetchMock.mockResolvedValueOnce(json(200, page)).mockResolvedValueOnce(json(200, page))
+
+    await expect(client.fetchTimeline('following')).resolves.toEqual(page)
+    await client.fetchTimeline('all', 'abc_-1')
+
+    expect(call(1).url).toBe('/api/timeline')
+    expect(call(2).url).toBe('/api/timeline/all?cursor=abc_-1')
+    expect(authorization(1)).toBe('Bearer access-1')
+  })
+
+  test('新しい投稿の件数', async () => {
+    await loggedIn()
+    fetchMock
+      .mockResolvedValueOnce(json(200, { count: 3 }))
+      .mockResolvedValueOnce(json(200, { count: 0 }))
+
+    await expect(client.fetchNewPostCount('following', 123)).resolves.toEqual({ count: 3 })
+    await client.fetchNewPostCount('all', 0)
+
+    expect(call(1).url).toBe('/api/timeline/new-count?since=123')
+    expect(call(2).url).toBe('/api/timeline/all/new-count?since=0')
+  })
+
+  test('そのユーザーの記録一覧', async () => {
+    await loggedIn()
+    fetchMock.mockResolvedValueOnce(json(200, page)).mockResolvedValueOnce(json(200, page))
+
+    await expect(client.fetchUserWorkouts('sato')).resolves.toEqual(page)
+    await client.fetchUserWorkouts('sato', 'abc_-1')
+
+    expect(call(1).url).toBe('/api/users/sato/workouts')
+    expect(call(2).url).toBe('/api/users/sato/workouts?cursor=abc_-1')
+  })
+})
+
 describe('プロフィールの編集（A-82）', () => {
   test('表示名と自己紹介を data のパートに、アイコンを icon のパートに入れて PUT で送る', async () => {
     await loggedIn()

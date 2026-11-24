@@ -7,6 +7,8 @@ import type * as api from '../lib/api/client'
  *
  *   vi.mock('../lib/api/client', (original) => import('../test/apiMock').then((m) => m.mockApiClient(original)))
  */
+const EMPTY_PAGE = { items: [], nextCursor: null, hasNext: false }
+
 export async function mockApiClient(importOriginal: () => Promise<typeof api>) {
   const actual = await importOriginal()
   return {
@@ -41,5 +43,9 @@ export async function mockApiClient(importOriginal: () => Promise<typeof api>) {
     fetchFollowers: vi.fn<typeof actual.fetchFollowers>(),
     fetchProfile: vi.fn<typeof actual.fetchProfile>(),
     updateProfile: vi.fn<typeof actual.updateProfile>(),
+    // ホーム・プロフィールは多くの画面のテストで開く（保存のあとに移るなど）ので、既定は「0件」にしておく
+    fetchTimeline: vi.fn<typeof actual.fetchTimeline>(async () => EMPTY_PAGE),
+    fetchNewPostCount: vi.fn<typeof actual.fetchNewPostCount>(async () => ({ count: 0 })),
+    fetchUserWorkouts: vi.fn<typeof actual.fetchUserWorkouts>(async () => EMPTY_PAGE),
   }
 }

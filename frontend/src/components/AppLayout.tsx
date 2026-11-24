@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { Link, NavLink, Outlet } from 'react-router'
+import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { fetchUnreadCount } from '../lib/api/client'
 import { useAuth } from '../lib/auth/authContext'
 import { formatUnreadCount } from '../lib/notification/notification'
+import { useRefreshTimeline } from '../lib/timeline/useRefreshTimeline'
 import styles from './AppLayout.module.css'
 import { Avatar } from './Avatar'
 import { UnverifiedNotice } from './UnverifiedNotice'
@@ -26,12 +27,7 @@ export function AppLayout() {
           FIT LOG
         </Link>
         <nav aria-label="メイン" className={styles.nav}>
-          <NavLink to="/" end className={styles.navLink}>
-            <span aria-hidden="true" className={styles.navIcon}>
-              🏠
-            </span>
-            ホーム
-          </NavLink>
+          <HomeLink />
           <NavLink to="/workouts/new" className={`${styles.navLink} ${styles.record}`}>
             <span aria-hidden="true" className={styles.plus}>
               ＋
@@ -49,6 +45,26 @@ export function AppLayout() {
         <Outlet />
       </main>
     </div>
+  )
+}
+
+/** ホーム（S-10）。フォロー中・全体のどちらのタブでも選ばれた見た目にし、表示中にもう一度押すと、最新を取り直して一番上へ */
+function HomeLink() {
+  const { pathname } = useLocation()
+  const refresh = useRefreshTimeline()
+  const onHome = pathname === '/' || pathname === '/all'
+  return (
+    <NavLink
+      to="/"
+      className={() => `${styles.navLink} ${onHome ? 'active' : ''}`}
+      aria-current={onHome ? 'page' : undefined}
+      onClick={() => onHome && refresh()}
+    >
+      <span aria-hidden="true" className={styles.navIcon}>
+        🏠
+      </span>
+      ホーム
+    </NavLink>
   )
 }
 

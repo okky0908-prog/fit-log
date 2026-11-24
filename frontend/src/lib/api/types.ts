@@ -128,6 +128,49 @@ export interface Workout {
   mine: boolean
 }
 
+/** 一覧の種目の要約（docs/api.md「WorkoutCard」）。記録方式で使わない項目は null */
+export interface ExerciseSummary {
+  exerciseId: number
+  name: string
+  recordType: RecordType
+  personalBest: boolean
+  setCount: number
+  /** 全セットが同じ値か（時間・距離は null） */
+  uniform: boolean | null
+  /** 重量 × 回数：全セットが同じならその値、違えば最大のセットの値 */
+  weightKg: number | null
+  /** 重量 × 回数：weightKg と同じセットの回数。回数のみ：全セットが同じときの回数 */
+  reps: number | null
+  /** 回数のみで、値が違うときの合計 */
+  totalReps: number | null
+  /** 時間・距離：時間（2セット以上なら合計） */
+  durationSec: number | null
+  /** 時間・距離：距離（2セット以上なら合計）。距離がなければ null */
+  distanceKm: number | null
+  /** 1セットで距離があるときだけ */
+  paceSecPerKm: number | null
+}
+
+/** 記録の一覧の1件（docs/api.md「WorkoutCard」。A-50・A-51・A-81） */
+export interface WorkoutCard {
+  id: number
+  author: UserSummary
+  performedOn: string
+  createdAt: string
+  editedAt: string | null
+  body: string
+  visibility: Visibility
+  /** 先頭5種目 */
+  exerciseSummaries: ExerciseSummary[]
+  /** 6種目目からの種目の数（「ほか N 種目」） */
+  otherExerciseCount: number
+  images: WorkoutImage[]
+  likeCount: number
+  likedByMe: boolean
+  commentCount: number
+  mine: boolean
+}
+
 /** 種目（docs/api.md A-30・A-31） */
 export interface Exercise {
   id: number

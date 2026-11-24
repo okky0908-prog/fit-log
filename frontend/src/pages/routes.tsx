@@ -38,7 +38,8 @@ export const routes: RouteObject[] = [
           {
             element: <AppLayout />,
             children: [
-              { path: '/', element: <HomePage /> },
+              { path: '/', element: <HomePage key="following" kind="following" /> },
+              { path: '/all', element: <HomePage key="all" kind="all" /> },
               { path: '/workouts/new', element: <WorkoutEditorPage /> },
               { path: '/workouts/:workoutId', element: <WorkoutDetailPage /> },
               { path: '/workouts/:workoutId/edit', element: <WorkoutEditorPage /> },
