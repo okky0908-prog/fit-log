@@ -35,6 +35,11 @@ public final class WorkoutVisibility {
                         .or(isAcceptedFollower(me))));
   }
 
+  /** フォロー中タイムライン（F-20）に入る投稿者か：自分か、承認済みのフォロー相手。閲覧の条件（{@link #visibleTo}）と一緒に使う */
+  public static Condition byMeOrFollowee(long me) {
+    return WORKOUTS.USER_ID.eq(me).or(isAcceptedFollower(me));
+  }
+
   /** me が、投稿者の承認済みのフォロワーか（リクエスト中は含めない。向きを取り違えない：me がフォローする側） */
   private static Condition isAcceptedFollower(long me) {
     return exists(

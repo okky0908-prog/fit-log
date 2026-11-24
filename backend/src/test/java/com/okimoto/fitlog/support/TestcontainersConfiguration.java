@@ -3,6 +3,8 @@ package com.okimoto.fitlog.support;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import org.jooq.ExecuteListenerProvider;
+import org.jooq.impl.DefaultExecuteListenerProvider;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.DynamicPropertyRegistrar;
@@ -86,6 +88,20 @@ public class TestcontainersConfiguration {
             .withFileFromPath(".", Path.of("../db"))
             .get();
     return DockerImageName.parse(image).asCompatibleSubstituteFor("postgres");
+  }
+
+  /**
+   * SQL の数を数える部品（N+1 がないことのテスト）。専用の設定のクラスに分けると、それを使うテストだけ Spring
+   * のアプリを別に起動することになり遅くなるので、ここに置いてすべてのテストで同じアプリを使い回す
+   */
+  @Bean
+  SqlCounter sqlCounter() {
+    return new SqlCounter();
+  }
+
+  @Bean
+  ExecuteListenerProvider sqlCounterListener(SqlCounter sqlCounter) {
+    return new DefaultExecuteListenerProvider(sqlCounter);
   }
 
   /** application-test.yml の接続先（つながらない宛先）を、コンテナの接続先で上書きする */

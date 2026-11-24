@@ -1,9 +1,9 @@
 package com.okimoto.fitlog.follow.service;
 
 import com.okimoto.fitlog.common.calc.Cursor;
-import com.okimoto.fitlog.common.controller.ApiError.FieldError;
 import com.okimoto.fitlog.common.controller.ApiException;
 import com.okimoto.fitlog.common.controller.ErrorCode;
+import com.okimoto.fitlog.common.service.CursorParams;
 import com.okimoto.fitlog.follow.calc.FollowRules;
 import com.okimoto.fitlog.follow.repository.FollowRepository;
 import com.okimoto.fitlog.follow.repository.FollowUserRow;
@@ -96,7 +96,7 @@ public class FollowService {
   @Transactional(readOnly = true)
   public Page following(long me, String username, String cursor) {
     long owner = findViewable(me, username);
-    Cursor.Position after = decode(cursor);
+    Cursor.Position after = CursorParams.position(cursor);
     return page(followRepository.findFollowing(owner, me, after, PAGE_SIZE + 1));
   }
 
@@ -104,7 +104,7 @@ public class FollowService {
   @Transactional(readOnly = true)
   public Page followers(long me, String username, String cursor) {
     long owner = findViewable(me, username);
-    Cursor.Position after = decode(cursor);
+    Cursor.Position after = CursorParams.position(cursor);
     return page(followRepository.findFollowers(owner, me, after, PAGE_SIZE + 1));
   }
 
@@ -132,17 +132,6 @@ public class FollowService {
     return userRepository
         .findByUsernameIgnoreCase(username)
         .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
-  }
-
-  private static Cursor.Position decode(String cursor) {
-    if (cursor == null) {
-      return null;
-    }
-    return Cursor.decode(cursor)
-        .orElseThrow(() ->
-            new ApiException(
-                ErrorCode.VALIDATION_FAILED,
-                List.of(new FieldError("cursor", "一覧の続きを読み込めません。最初から読み込み直してください"))));
   }
 
   /** 1件多く取った結果から、1ページと続きのカーソルを作る */
