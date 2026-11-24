@@ -189,6 +189,24 @@ class NotificationRepositoryTest {
     }
   }
 
+  @Test
+  void 記録への操作の取り消しでは_その人からのその記録へのその種類の通知だけを消す() {
+    long workout = workouts.of(me).save();
+    long otherWorkout = workouts.of(me).save();
+    long target = like(sato, me, workout, NOW);
+    long otherActor = like(suzuki, me, workout, NOW);
+    long otherOnWorkout = like(sato, me, otherWorkout, NOW);
+    long otherType = insert("comment", sato, me, workout);
+
+    assertThat(notificationRepository.deleteFromActorOnWorkout(sato, workout, "like")).isEqualTo(1);
+    assertThat(notificationRepository.deleteFromActorOnWorkout(sato, workout, "like")).isZero();
+
+    assertThat(dsl.fetchExists(NOTIFICATIONS, NOTIFICATIONS.ID.eq(target))).isFalse();
+    for (long kept : new long[] {otherActor, otherOnWorkout, otherType}) {
+      assertThat(dsl.fetchExists(NOTIFICATIONS, NOTIFICATIONS.ID.eq(kept))).isTrue();
+    }
+  }
+
   private long like(long actor, long recipient, long workoutId, OffsetDateTime at) {
     return notificationRepository.insert(
         new NewNotification(recipient, actor, "like", workoutId, at));

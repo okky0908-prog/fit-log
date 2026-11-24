@@ -126,6 +126,19 @@ public class NotificationRepository {
         .execute();
   }
 
+  /**
+   * 記録への操作の取り消し（ナイストレーニングなど）で、その人からのその記録への通知を消す。
+   *
+   * @return 消した数
+   */
+  public int deleteFromActorOnWorkout(long actorId, long workoutId, String type) {
+    return dsl.deleteFrom(NOTIFICATIONS)
+        .where(NOTIFICATIONS.ACTOR_ID.eq(actorId))
+        .and(NOTIFICATIONS.WORKOUT_ID.eq(workoutId))
+        .and(NOTIFICATIONS.TYPE.eq(type))
+        .execute();
+  }
+
   private static SelectJoinStep<?> withWorkouts(org.jooq.SelectSelectStep<?> select) {
     return select
         .from(NOTIFICATIONS)

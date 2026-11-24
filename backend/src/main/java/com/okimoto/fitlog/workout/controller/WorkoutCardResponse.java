@@ -13,8 +13,7 @@ import java.util.function.Function;
  * 記録の一覧の1件（docs/api.md「WorkoutCard」。A-50・A-51・A-81、のちに A-54・A-93）。投稿カードに出すものだけを返す。
  * 他人にも返す形なので、項目を足すときは本人以外に出してよいかを考える。
  *
- * <p>まだ作っていない機能の項目は、決まった値を返す：{@code likeCount}・{@code likedByMe}・{@code commentCount} は
- * 0・false（13本目）、種目の {@code personalBest} は false（段階 2）
+ * <p>まだ作っていない機能の項目は、決まった値を返す：{@code commentCount} は 0（13-2）、種目の {@code personalBest} は false（段階 2）
  *
  * @param id 記録
  * @param author 投稿者
@@ -75,8 +74,8 @@ public record WorkoutCardResponse(
                 new WorkoutResponse.Image(
                     image.id(), urlOf.apply(image.imageKey()), image.sortOrder()))
             .toList(),
-        0,
-        false,
+        row.likeCount(),
+        row.likedByMe(),
         0,
         row.userId() == me);
   }

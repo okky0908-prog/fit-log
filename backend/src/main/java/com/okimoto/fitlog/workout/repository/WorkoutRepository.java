@@ -101,6 +101,24 @@ public class WorkoutRepository {
         .fetchOptional(WORKOUTS.USER_ID);
   }
 
+  /**
+   * ナイストレーニング・コメントの前に、見てよい記録（{@link WorkoutVisibility}）の投稿者を取る。記録の行を共有ロック（FOR
+   * SHARE）して、確かめてから書き込むまでの間に記録が消されないようにする（同じ記録への操作どうしは待たせない）。
+   *
+   * @return 投稿者の ID。見てはいけない・ない記録は空
+   */
+  public Optional<Long> lockVisibleForShare(long id, long me) {
+    return dsl.select(WORKOUTS.USER_ID)
+        .from(WORKOUTS)
+        .join(USERS)
+        .on(USERS.ID.eq(WORKOUTS.USER_ID))
+        .where(WORKOUTS.ID.eq(id))
+        .and(WorkoutVisibility.visibleTo(me))
+        .forShare()
+        .of(WORKOUTS)
+        .fetchOptional(WORKOUTS.USER_ID);
+  }
+
   /** 記録を編集する。種目とセットは、前の行を消して入れ直す（セットは外部キーの CASCADE で一緒に消える） */
   public void update(long id, WorkoutEdit edit) {
     dsl.update(WORKOUTS)
@@ -215,7 +233,9 @@ public class WorkoutRepository {
                         .from(WORKOUT_IMAGES)
                         .where(WORKOUT_IMAGES.WORKOUT_ID.eq(WORKOUTS.ID))
                         .orderBy(WORKOUT_IMAGES.SORT_ORDER))
-                .convertFrom(r -> r.map(Records.mapping(WorkoutDetail.Image::new))))
+                .convertFrom(r -> r.map(Records.mapping(WorkoutDetail.Image::new))),
+            LikeFields.likeCount(),
+            LikeFields.likedBy(me))
         .from(WORKOUTS)
         .join(USERS)
         .on(USERS.ID.eq(WORKOUTS.USER_ID))

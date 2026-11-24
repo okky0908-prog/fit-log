@@ -22,6 +22,8 @@ import java.util.List;
  * @param visibility 公開範囲
  * @param exercises 種目とセット（並び順のとおり）
  * @param images 画像（並び順のとおり）
+ * @param likeCount ナイストレーニングの数
+ * @param likedByMe 見ている人が付けたか
  */
 public record WorkoutDetail(
     long id,
@@ -37,7 +39,9 @@ public record WorkoutDetail(
     Short durationMin,
     String visibility,
     List<Exercise> exercises,
-    List<Image> images) {
+    List<Image> images,
+    int likeCount,
+    boolean likedByMe) {
 
   /**
    * 記録の種目。
