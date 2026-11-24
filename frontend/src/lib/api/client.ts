@@ -350,3 +350,16 @@ export function fetchProfile(username: string): Promise<Profile> {
 function cursorQuery(cursor?: string): string {
   return cursor === undefined ? '' : `?${new URLSearchParams({ cursor })}`
 }
+
+/** A-82 プロフィールの編集。アイコンは送ったときだけ差し替わる（縮小した JPEG） */
+export function updateProfile(
+  input: { displayName: string; bio: string },
+  icon?: Blob,
+): Promise<Profile> {
+  const form = new FormData()
+  form.append('data', new Blob([JSON.stringify(input)], { type: 'application/json' }))
+  if (icon) {
+    form.append('icon', icon, 'icon.jpg')
+  }
+  return apiFetch('/api/users/me', { method: 'PUT', form, auth: true })
+}

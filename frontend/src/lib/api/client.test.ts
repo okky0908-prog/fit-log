@@ -560,3 +560,28 @@ describe('フォロー・プロフィール（A-70〜A-73・A-80）', () => {
     expect(call(1).url).toBe('/api/users/sato')
   })
 })
+
+describe('プロフィールの編集（A-82）', () => {
+  test('表示名と自己紹介を data のパートに、アイコンを icon のパートに入れて PUT で送る', async () => {
+    await loggedIn()
+    fetchMock
+      .mockResolvedValueOnce(json(200, { username: 'yamada' }))
+      .mockResolvedValueOnce(json(200, { username: 'yamada' }))
+    const icon = new Blob(['i'], { type: 'image/jpeg' })
+
+    await expect(client.updateProfile({ displayName: '山田', bio: '' }, icon)).resolves.toEqual({
+      username: 'yamada',
+    })
+    await client.updateProfile({ displayName: '山田', bio: 'こんにちは' })
+
+    expect(call(1).url).toBe('/api/users/me')
+    expect(call(1).init.method).toBe('PUT')
+    const form = call(1).init.body as FormData
+    expect(JSON.parse(await (form.get('data') as Blob).text())).toEqual({
+      displayName: '山田',
+      bio: '',
+    })
+    expect(form.get('icon')).toBeInstanceOf(Blob)
+    expect((call(2).init.body as FormData).has('icon')).toBe(false)
+  })
+})

@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from 'vitest'
-import { fitSize, type ImageCodec, shrinkImage, UnusableImageError } from './shrink'
+import { fitSize, ICON_MAX_SIDE, type ImageCodec, shrinkImage, UnusableImageError } from './shrink'
 
 // 画像の縮小（docs/features.md「記録の項目」の画像：選べるのは1枚20MBまで、長い辺1600pxまで縮小して送る。サーバーは1枚2MBまで）
 
@@ -43,6 +43,17 @@ describe('縮小したあとの大きさ', () => {
     expect(fitSize(1601, 1000)).toEqual({ width: 1600, height: 999 })
     expect(fitSize(10000, 1)).toEqual({ width: 1600, height: 1 })
     expect(fitSize(1, 10000)).toEqual({ width: 1, height: 1600 })
+  })
+})
+
+describe('アイコン（512px 四方に収める）', () => {
+  test('長い辺を512pxにそろえて書き出す', async () => {
+    const fake = codec(4000, 3000)
+
+    await shrinkImage(file('image/png'), fake, ICON_MAX_SIDE)
+
+    expect(fake.encode).toHaveBeenCalledWith({}, 512, 384, 0.85)
+    expect(fitSize(300, 200, ICON_MAX_SIDE)).toEqual({ width: 300, height: 200 })
   })
 })
 
