@@ -1,0 +1,95 @@
+.title {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.choose {
+  display: inline-block;
+  cursor: pointer;
+}
+
+/* キーボードで選んだときに、ボタンの見た目の方に枠を出す */
+.choose:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 表示名（FormField）の見出し・入力欄と同じ見た目にそろえる */
+.label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font: inherit;
+  background: var(--color-surface);
+  color: var(--color-text);
+  resize: vertical;
+}
+
+.textarea:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.textarea[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.count {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  text-align: right;
+}
+
+.note {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.error {
+  margin: 4px 0 0;
+  color: var(--color-danger);
+  font-size: 0.8125rem;
+}
+
+.failure {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

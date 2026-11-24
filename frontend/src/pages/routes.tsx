@@ -6,6 +6,7 @@ import { FollowListPage } from './FollowListPage'
 import { HomePage } from './HomePage'
 import { LoginPage } from './LoginPage'
 import { NotificationsPage } from './NotificationsPage'
+import { ProfileEditPage } from './ProfileEditPage'
 import { ProfilePage } from './ProfilePage'
 import { SignupPage } from './SignupPage'
 import { VerifyEmailPage } from './VerifyEmailPage'
@@ -43,6 +44,7 @@ export const routes: RouteObject[] = [
               { path: '/workouts/:workoutId/edit', element: <WorkoutEditorPage /> },
               { path: '/notifications', element: <NotificationsPage /> },
               { path: '/users/:username', element: <ProfilePage /> },
+              { path: '/settings/profile', element: <ProfileEditPage /> },
               {
                 path: '/users/:username/following',
                 element: <FollowListPage key="following" kind="following" />,

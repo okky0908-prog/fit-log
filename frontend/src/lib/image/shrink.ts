@@ -13,6 +13,9 @@ export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024
 /** 縮小したあとの長い辺 */
 export const MAX_SIDE = 1600
 
+/** アイコンの長い辺の上限（docs/api.md A-82。512px 四方に収める） */
+export const ICON_MAX_SIDE = 512
+
 export const UNUSABLE_IMAGE_MESSAGE = 'この画像は使えません（JPEG・PNG・WebP、20MBまで）'
 
 const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -33,23 +36,35 @@ export class UnusableImageError extends Error {
   }
 }
 
-/** 長い辺を MAX_SIDE にそろえた大きさ。縦横の比は変えず、小さな画像は大きくしない */
-export function fitSize(width: number, height: number): { width: number; height: number } {
-  const scale = Math.min(1, MAX_SIDE / Math.max(width, height))
+/** 長い辺を maxSide にそろえた大きさ。縦横の比は変えず、小さな画像は大きくしない */
+export function fitSize(
+  width: number,
+  height: number,
+  maxSide: number = MAX_SIDE,
+): { width: number; height: number } {
+  const scale = Math.min(1, maxSide / Math.max(width, height))
   return {
     width: Math.max(1, Math.round(width * scale)),
     height: Math.max(1, Math.round(height * scale)),
   }
 }
 
-/** 縮小して JPEG にする。使えない画像なら UnusableImageError */
-export async function shrinkImage(file: File, codec: ImageCodec = browserCodec): Promise<Blob> {
+/**
+ * 縮小して JPEG にする。使えない画像なら UnusableImageError
+ *
+ * @param maxSide 長い辺の上限（記録の画像は 1600px、アイコンは 512px）
+ */
+export async function shrinkImage(
+  file: File,
+  codec: ImageCodec = browserCodec,
+  maxSide: number = MAX_SIDE,
+): Promise<Blob> {
   if (!ACCEPTED_TYPES.has(file.type) || file.size > MAX_SOURCE_BYTES) {
     throw new UnusableImageError()
   }
   try {
     const image = await codec.decode(file)
-    const size = fitSize(image.width, image.height)
+    const size = fitSize(image.width, image.height, maxSide)
     for (const quality of QUALITIES) {
       const blob = await codec.encode(image.source, size.width, size.height, quality)
       if (blob.size <= MAX_UPLOAD_BYTES) {
