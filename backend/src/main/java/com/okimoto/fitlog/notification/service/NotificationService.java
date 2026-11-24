@@ -1,9 +1,7 @@
 package com.okimoto.fitlog.notification.service;
 
 import com.okimoto.fitlog.common.calc.Cursor;
-import com.okimoto.fitlog.common.controller.ApiError.FieldError;
-import com.okimoto.fitlog.common.controller.ApiException;
-import com.okimoto.fitlog.common.controller.ErrorCode;
+import com.okimoto.fitlog.common.service.CursorParams;
 import com.okimoto.fitlog.follow.repository.FollowRepository;
 import com.okimoto.fitlog.notification.repository.NotificationRepository;
 import com.okimoto.fitlog.notification.repository.NotificationRow;
@@ -49,15 +47,7 @@ public class NotificationService {
    */
   @Transactional(readOnly = true)
   public Page list(long me, String cursor) {
-    Cursor.Position after = null;
-    if (cursor != null) {
-      after =
-          Cursor.decode(cursor)
-              .orElseThrow(() ->
-                  new ApiException(
-                      ErrorCode.VALIDATION_FAILED,
-                      List.of(new FieldError("cursor", "一覧の続きを読み込めません。最初から読み込み直してください"))));
-    }
+    Cursor.Position after = CursorParams.position(cursor);
     // 1件多く取り、続きがあるかを知る
     List<NotificationRow> rows = repository.findPage(me, after, PAGE_SIZE + 1);
     if (rows.size() <= PAGE_SIZE) {
