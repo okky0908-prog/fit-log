@@ -22,6 +22,8 @@ import java.util.List;
  * @param exercises 先頭5種目の集計（並び順のとおり）
  * @param otherExerciseCount 6種目目からの種目の数
  * @param images 画像（並び順のとおり）
+ * @param likeCount ナイストレーニングの数
+ * @param likedByMe 見ている人が付けたか
  */
 public record WorkoutCardRow(
     long id,
@@ -37,4 +39,6 @@ public record WorkoutCardRow(
     String visibility,
     List<ExerciseAggregate> exercises,
     int otherExerciseCount,
-    List<WorkoutDetail.Image> images) {}
+    List<WorkoutDetail.Image> images,
+    int likeCount,
+    boolean likedByMe) {}
