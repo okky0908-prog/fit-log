@@ -145,6 +145,21 @@ describe('投稿カード', () => {
     expect(router.state.location.pathname).toBe('/users/sato')
   })
 
+  test('💬 を押すと、投稿詳細へ移り、コメントの入力欄にカーソルを合わせる', async () => {
+    vi.mocked(api.fetchTimeline).mockResolvedValue(page([card({ commentCount: 3 })]))
+    vi.mocked(api.fetchWorkout).mockResolvedValue({
+      ...card({ commentCount: 3 }),
+      durationMin: null,
+      exercises: [],
+    })
+    const { router } = renderApp('/')
+
+    await userEvent.click(await screen.findByRole('link', { name: 'コメント欄へ（3件）' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/workouts/1'))
+    expect(await screen.findByRole('textbox', { name: 'コメントを入力' })).toHaveFocus()
+  })
+
   test('自分の記録は `…` メニューから削除でき、一覧から消える', async () => {
     vi.mocked(api.fetchTimeline)
       .mockResolvedValueOnce(page([card({ mine: true })]))

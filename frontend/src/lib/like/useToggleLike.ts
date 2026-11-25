@@ -1,13 +1,9 @@
-import { type QueryFilters, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { errorMessage, likeWorkout, unlikeWorkout } from '../api/client'
 import type { LikeState } from '../api/types'
 import { useToast } from '../toast'
-import { toggleLike, withLikeState } from './like'
-
-/** その記録を出しうる、読み込み済みのデータ（タイムライン・プロフィールの記録一覧・記録の詳細） */
-function filtersFor(workoutId: number): QueryFilters[] {
-  return [{ queryKey: ['timeline'] }, { queryKey: ['users'] }, { queryKey: ['workout', workoutId] }]
-}
+import { applyWorkoutValues, workoutQueryFilters } from '../workout/workoutCache'
+import { toggleLike } from './like'
 
 /**
  * ナイストレーニングを付ける・取り消す（F-40〜F-42）。押した瞬間に、読み込み済みのデータを書き換えて画面を先に変える。
@@ -18,19 +14,17 @@ export function useToggleLike(workoutId: number) {
   const queryClient = useQueryClient()
   const toast = useToast()
 
-  const apply = (state: LikeState) => {
-    for (const filters of filtersFor(workoutId)) {
-      queryClient.setQueriesData(filters, (data: unknown) => withLikeState(data, workoutId, state))
-    }
-  }
+  const apply = (state: LikeState) => applyWorkoutValues(queryClient, workoutId, state)
 
   return useMutation({
     mutationFn: (current: LikeState) =>
       current.likedByMe ? unlikeWorkout(workoutId) : likeWorkout(workoutId),
     onMutate: async (current: LikeState) => {
       // 読み込み中の取り直しが、先に変えた表示を古い値で上書きしないよう止める
-      await Promise.all(filtersFor(workoutId).map((filters) => queryClient.cancelQueries(filters)))
-      const snapshot = filtersFor(workoutId).flatMap((filters) =>
+      await Promise.all(
+        workoutQueryFilters(workoutId).map((filters) => queryClient.cancelQueries(filters)),
+      )
+      const snapshot = workoutQueryFilters(workoutId).flatMap((filters) =>
         queryClient.getQueriesData(filters),
       )
       apply(toggleLike(current))

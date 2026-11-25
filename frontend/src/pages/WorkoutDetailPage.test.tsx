@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import * as api from '../lib/api/client'
-import type { Workout } from '../lib/api/types'
+import type { Comment, Reply, Workout } from '../lib/api/types'
 import { ME, renderApp, startAs } from '../test/helpers'
 
 vi.mock('../lib/api/client', (original) =>
@@ -10,7 +10,7 @@ vi.mock('../lib/api/client', (original) =>
 )
 
 // S-12 投稿詳細（docs/screens.md）。表示・単位・見られない記録・自分の記録の削除。
-// コメント欄（13-4）・消費カロリー（段階 5）は、それぞれの PR で足す
+// 消費カロリー（段階 5）は、その段階で足す
 
 const NOW = new Date('2026-11-22T10:00:00+09:00')
 
@@ -69,6 +69,11 @@ beforeEach(() => {
   vi.mocked(api.fetchWorkout).mockReset()
   vi.mocked(api.deleteWorkout).mockReset()
   vi.mocked(api.likeWorkout).mockReset()
+  vi.mocked(api.fetchComments).mockReset()
+  vi.mocked(api.fetchComments).mockResolvedValue({ items: [], nextCursor: null, hasNext: false })
+  vi.mocked(api.postComment).mockReset()
+  vi.mocked(api.deleteComment).mockReset()
+  vi.mocked(api.fetchReplies).mockReset()
   startAs(ME)
 })
 
@@ -398,5 +403,324 @@ describe('画像の拡大表示', () => {
     expect(screen.getByRole('dialog', { name: '画像 1 / 1' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '次の画像' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '前の画像' })).not.toBeInTheDocument()
+  })
+})
+
+describe('コメント欄', () => {
+  const SATO = { username: 'sato', displayName: '佐藤花子', iconUrl: null, isPrivate: false }
+  const YAMADA = { username: 'yamada', displayName: '山田太郎', iconUrl: null, isPrivate: false }
+
+  function reply(id: number, values: Partial<Reply> = {}): Reply {
+    return {
+      id,
+      author: YAMADA,
+      replyToUser: SATO,
+      body: `返信${id}`,
+      createdAt: '2026-11-22T09:58:00+09:00',
+      deletable: false,
+      ...values,
+    }
+  }
+
+  function comment(id: number, values: Partial<Comment> = {}): Comment {
+    return {
+      id,
+      author: SATO,
+      body: `コメント${id}`,
+      createdAt: '2026-11-22T09:58:00+09:00',
+      deletable: false,
+      replies: [],
+      replyCount: 0,
+      repliesNextCursor: null,
+      ...values,
+    }
+  }
+
+  function comments(items: Comment[], nextCursor: string | null = null) {
+    return { items, nextCursor, hasNext: nextCursor !== null }
+  }
+
+  const input = () => screen.getByRole('textbox', { name: 'コメントを入力' })
+
+  test('コメントと返信を古い順に出し、返信先の @ユーザー名 を添える', async () => {
+    vi.mocked(api.fetchWorkout).mockResolvedValue(WORKOUT)
+    vi.mocked(api.fetchComments).mockResolvedValue(
+      comments([
+        comment(501, {
+          body: 'フォームきれいでした！',
+          replies: [reply(502, { body: 'ありがとうございます！' })],
+          replyCount: 1,
+        }),
+        comment(503, { author: YAMADA, body: 'ナイスです' }),
+      ]),
+    )
+    renderApp('/workouts/12')
+
+    const section = await screen.findByRole('region', { name: 'コメント' })
+    const items = await within(section).findAllByRole('article')
+    expect(api.fetchComments).toHaveBeenCalledWith(12, undefined)
+    expect(items.map((item) => item.textContent)).toEqual([
+      expect.stringContaining('フォームきれいでした！'),
+      expect.stringContaining('ありがとうございます！'),
+      expect.stringContaining('ナイスです'),
+    ])
+    expect(items[1]).toHaveTextContent('@sato ありがとうございます！')
+    expect(within(items[0]).getByRole('link', { name: '佐藤花子' })).toHaveAttribute(
+      'href',
+      '/users/sato',
+    )
+  })
+
+  test('返信が4件以上なら「返信をさらに表示（N件）」で続きを読み込み、全部出したら消す', async () => {
+    vi.mocked(api.fetchWorkout).mockResolvedValue(WORKOUT)
+    vi.mocked(api.fetchComments).mockResolvedValue(
+      comments([
+        comment(501, {
+          replies: [reply(1), reply(2), reply(3)],
+          replyCount: 5,
+          repliesNextCursor: 'r3',
+        }),
+      ]),
+    )
+    vi.mocked(api.fetchReplies).mockResolvedValue({
+      items: [reply(4), reply(5)],
+      nextCursor: null,
+      hasNext: false,
+    })
+    renderApp('/workouts/12')
+
+    await userEvent.click(await screen.findByRole('button', { name: '返信をさらに表示（2件）' }))
+
+    expect(api.fetchReplies).toHaveBeenCalledWith(501, 'r3')
+    expect(await screen.findByText('返信5')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /返信をさらに表示/ })).not.toBeInTheDocument()
+  })
+
+  test('返信が消されて数が合わず、まだ出していない返信がなければ「返信をさらに表示」を出さない', async () => {
+    vi.mocked(api.fetchWorkout).mockResolvedValue(WORKOUT)
+    vi.mocked(api.fetchComments).mockResolvedValue(
+      comments([
+        comment(501, {
+          replies: [reply(1), reply(2), reply(3)],
+          replyCount: 3,
+          repliesNextCursor: 'r3',
+        }),
+      ]),
+    )
+    renderApp('/workouts/12')
+
+    expect(await screen.findByText('返信3')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /返信をさらに表示/ })).not.toBeInTheDocument()
+  })
+
+  test('コメントの続きは「さらに表示」で読み込む', async () => {
+    vi.mocked(api.fetchWorkout).mockResolvedValue(WORKOUT)
+    vi.mocked(api.fetchComments)
+      .mockResolvedValueOnce(comments([comment(501)], 'next'))
+      .mockResolvedValueOnce(comments([comment(502)]))
+    renderApp('/workouts/12')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'さらに表示' }))
+
+    expect(await screen.findByText('コメント502')).toBeInTheDocument()
+    expect(api.fetchComments).toHaveBeenLastCalledWith(12, 'next')
+    expect(screen.queryByRole('button', { name: 'さらに表示' })).not.toBeInTheDocument()
+  })
+
+  describe('投稿', () => {
+    test('文字数を数え、空や141文字ではボタンを押せず、超えたら数を赤字にする', async () => {
+      vi.mocked(api.fetchWorkout).mockResolvedValue(WORKOUT)
+      renderApp('/workouts/12')
+
+      const button = await screen.findByRole('button', { name: 'コメントする' })
+      expect(screen.getByText('0 / 140')).toBeInTheDocument()
+      expect(button).toBeDisabled()
+
+      await userEvent.type(input(), 'ナイス💪')
+      expect(screen.getByText('4 / 140')).toBeInTheDocument()
+      expect(button).toBeEnabled()
+
+      await userEvent.clear(input())
+      await userEvent.click(input())
+      await userEvent.paste('あ'.repeat(141))
+      expect(screen.getByText('141 / 140')).toHaveAttribute('data-over', 'true')
+      expect(button).toBeDisabled()
+    })
+
+    test('投稿すると最後に足して入力欄を空にし、コメント数を合わせる', async () => {
+      vi.mocked(api.fetchWorkout).mockResolvedValue({ ...WORKOUT, commentCount: 1 })
+      vi.mocked(api.fetchComments).mockResolvedValue(comments([comment(501)]))
+      vi.mocked(api.postComment).mockResolvedValue({
+        comment: comment(510, { author: YAMADA, body: 'ナイス', deletable: true }),
+        commentCount: 2,
+      })
+      renderApp('/workouts/12')
+
+      await userEvent.type(await screen.findByRole('textbox', { name: 'コメントを入力' }), 'ナイス')
+      await userEvent.click(screen.getByRole('button', { name: 'コメントする' }))
+
+      expect(api.postComment).toHaveBeenCalledWith(12, 'ナイス')
+      const section = screen.getByRole('region', { name: 'コメント' })
+      await waitFor(() => expect(within(section).getAllByRole('article')).toHaveLength(2))
+      expect(within(section).getAllByRole('article')[1]).toHaveTextContent('ナイス')
+      expect(input()).toHaveValue('')
+      expect(screen.getByTitle('コメント')).toHaveTextContent('2')
+    })
+
+    test('投稿できなければ、お知らせで理由を出し、入力は残す', async () => {
+      vi.mocked(api.fetchWorkout).mockResolvedValue(WORKOUT)
+      vi.mocked(api.postComment).mockRejectedValue(
+        new api.ApiError(404, 'WORKOUT_NOT_FOUND', '記録が見つかりません'),
+      )
+      renderApp('/workouts/12')
+
+      await userEvent.type(await screen.findByRole('textbox', { name: 'コメントを入力' }), 'ナイス')
+      await userEvent.click(screen.getByRole('button', { name: 'コメントする' }))
+
+      expect(await screen.findByText('記録が見つかりません')).toBeInTheDocument()
+      expect(input()).toHaveValue('ナイス')
+    })
+
+    test('自分のみの記録では、入力欄の見出しを「メモを書く」にする', async () => {
+      vi.mocked(api.fetchWorkout).mockResolvedValue({ ...MINE, visibility: 'private' })
+      renderApp('/workouts/12')
+
+      expect(await screen.findByRole('textbox', { name: 'メモを書く' })).toBeInTheDocument()
+    })
+
+    test('💬 を押すと、入力欄にカーソルを合わせる', async () => {
+      vi.mocked(api.fetchWorkout).mockResolvedValue(WORKOUT)
+      renderApp('/workouts/12')
+
+      await userEvent.click(await screen.findByRole('button', { name: /コメント欄へ/ }))
+
+      expect(input()).toHaveFocus()
+    })
+  })
+
+  describe('返信', () => {
+    test('コメントの「返信」で入力欄を出し、送ると、その返信の最後にすぐ足す', async () => {
+      vi.mocked(api.fetchWorkout).mockResolvedValue(WORKOUT)
+      vi.mocked(api.fetchComments).mockResolvedValue(comments([comment(501)]))
+      vi.mocked(api.postComment).mockResolvedValue({
+        comment: reply(520, { body: 'ありがとう' }),
+        commentCount: 2,
+      })
+      renderApp('/workouts/12')
+
+      await userEvent.click(await screen.findByRole('button', { name: '返信' }))
+      const box = screen.getByRole('textbox', { name: '返信を入力' })
+      expect(box).toHaveValue('')
+      expect(box).toHaveFocus()
+      await userEvent.type(box, 'ありがとう')
+      await userEvent.click(screen.getByRole('button', { name: '返信する' }))
+
+      expect(api.postComment).toHaveBeenCalledWith(12, 'ありがとう', 501)
+      expect(await screen.findByText('ありがとう')).toBeInTheDocument()
+      expect(screen.queryByRole('textbox', { name: '返信を入力' })).not.toBeInTheDocument()
+      expect(screen.getByTitle('コメント')).toHaveTextContent('2')
+    })
+
+    test('返信への「返信」は、同じ返信元の下に、@ユーザー名 を入れた入力欄を出す', async () => {
+      vi.mocked(api.fetchWorkout).mockResolvedValue(WORKOUT)
+      vi.mocked(api.fetchComments).mockResolvedValue(
+        comments([comment(501, { replies: [reply(502)], replyCount: 1 })]),
+      )
+      vi.mocked(api.postComment).mockResolvedValue({
+        comment: reply(530, { author: SATO, replyToUser: YAMADA, body: '@yamada どうも' }),
+        commentCount: 3,
+      })
+      renderApp('/workouts/12')
+
+      const replyItem = (await screen.findByText('返信502')).closest('article') as HTMLElement
+      await userEvent.click(within(replyItem).getByRole('button', { name: '返信' }))
+      const box = screen.getByRole('textbox', { name: '返信を入力' })
+      expect(box).toHaveValue('@yamada ')
+      await userEvent.type(box, 'どうも')
+      await userEvent.click(screen.getByRole('button', { name: '返信する' }))
+
+      expect(api.postComment).toHaveBeenCalledWith(12, '@yamada どうも', 502)
+    })
+
+    test('続きを読み込んでも、投稿した返信を重ねて出さない', async () => {
+      vi.mocked(api.fetchWorkout).mockResolvedValue(WORKOUT)
+      vi.mocked(api.fetchComments).mockResolvedValue(
+        comments([
+          comment(501, {
+            replies: [reply(1), reply(2), reply(3)],
+            replyCount: 4,
+            repliesNextCursor: 'r3',
+          }),
+        ]),
+      )
+      vi.mocked(api.postComment).mockResolvedValue({
+        comment: reply(9, { body: '投稿した返信' }),
+        commentCount: 6,
+      })
+      vi.mocked(api.fetchReplies).mockResolvedValue({
+        items: [reply(4), reply(9, { body: '投稿した返信' })],
+        nextCursor: null,
+        hasNext: false,
+      })
+      renderApp('/workouts/12')
+
+      await userEvent.click((await screen.findAllByRole('button', { name: '返信' }))[0])
+      await userEvent.type(screen.getByRole('textbox', { name: '返信を入力' }), '投稿した返信')
+      await userEvent.click(screen.getByRole('button', { name: '返信する' }))
+      await screen.findByText('投稿した返信')
+      await userEvent.click(screen.getByRole('button', { name: '返信をさらに表示（1件）' }))
+
+      expect(await screen.findByText('返信4')).toBeInTheDocument()
+      expect(screen.getAllByText('投稿した返信')).toHaveLength(1)
+    })
+  })
+
+  describe('削除', () => {
+    test('消せるものにだけ「削除」を出し、返信元は「返信も削除されます」と確かめてから消す', async () => {
+      vi.mocked(api.fetchWorkout).mockResolvedValue({ ...WORKOUT, commentCount: 3 })
+      vi.mocked(api.fetchComments).mockResolvedValue(
+        comments([
+          comment(501, { deletable: true, replies: [reply(502)], replyCount: 1 }),
+          comment(503),
+        ]),
+      )
+      vi.mocked(api.deleteComment).mockResolvedValue({ commentCount: 1 })
+      renderApp('/workouts/12')
+
+      const section = await screen.findByRole('region', { name: 'コメント' })
+      await within(section).findByText('コメント501')
+      expect(within(section).getAllByRole('button', { name: '削除' })).toHaveLength(1)
+      await userEvent.click(within(section).getByRole('button', { name: '削除' }))
+      const dialog = screen.getByRole('dialog', { name: 'このコメントを削除しますか？' })
+      expect(dialog).toHaveTextContent('返信も削除されます')
+      await userEvent.click(within(dialog).getByRole('button', { name: '削除する' }))
+
+      expect(api.deleteComment).toHaveBeenCalledWith(501)
+      await waitFor(() => expect(screen.queryByText('コメント501')).not.toBeInTheDocument())
+      expect(screen.queryByText('返信502')).not.toBeInTheDocument()
+      expect(screen.getByText('コメント503')).toBeInTheDocument()
+      expect(screen.getByTitle('コメント')).toHaveTextContent('1')
+      expect(await screen.findByText('コメントを削除しました')).toBeInTheDocument()
+    })
+
+    test('返信の削除では「返信も削除されます」を出さない', async () => {
+      vi.mocked(api.fetchWorkout).mockResolvedValue(WORKOUT)
+      vi.mocked(api.fetchComments).mockResolvedValue(
+        comments([comment(501, { replies: [reply(502, { deletable: true })], replyCount: 1 })]),
+      )
+      renderApp('/workouts/12')
+
+      vi.mocked(api.deleteComment).mockResolvedValue({ commentCount: 1 })
+      await userEvent.click(await screen.findByRole('button', { name: '削除' }))
+
+      const dialog = screen.getByRole('dialog')
+      expect(dialog).not.toHaveTextContent('返信も削除されます')
+      await userEvent.click(within(dialog).getByRole('button', { name: '削除する' }))
+
+      expect(api.deleteComment).toHaveBeenCalledWith(502)
+      await waitFor(() => expect(screen.queryByText('返信502')).not.toBeInTheDocument())
+      expect(screen.getByText('コメント501')).toBeInTheDocument()
+      expect(screen.getByTitle('コメント')).toHaveTextContent('1')
+    })
   })
 })

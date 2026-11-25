@@ -24,6 +24,7 @@ export type ApiErrorCode =
   | 'USER_NOT_FOUND'
   | 'CANNOT_FOLLOW_SELF'
   | 'PRIVATE_ACCOUNT'
+  | 'COMMENT_NOT_FOUND'
   | (string & {})
 
 /** 項目ごとのエラー（入力チェック・登録済み） */
@@ -175,6 +176,40 @@ export interface WorkoutCard {
 export interface LikeState {
   likeCount: number
   likedByMe: boolean
+}
+
+/** 返信（docs/api.md「Comment」の replies の1件・A-65 の1件） */
+export interface Reply {
+  id: number
+  author: UserSummary
+  /** 返信先の人。退会していれば null（@xxx を出さない） */
+  replyToUser: UserSummary | null
+  body: string
+  createdAt: string
+  /** 自分が書いたか、自分の投稿への返信か（「削除」を出すか） */
+  deletable: boolean
+}
+
+/** 返信でないコメント（docs/api.md「Comment」。A-60） */
+export interface Comment {
+  id: number
+  author: UserSummary
+  body: string
+  createdAt: string
+  deletable: boolean
+  /** 返信（古い順に3件まで） */
+  replies: Reply[]
+  /** 返信の総数 */
+  replyCount: number
+  /** 4件目からを A-65 で取るカーソル。3件以下なら null */
+  repliesNextCursor: string | null
+}
+
+/** A-61 の応答。comment は、コメントなら Comment の形、返信なら Reply の形 */
+export interface PostedComment {
+  comment: Comment | Reply
+  /** 投稿後のコメント数（返信を含む） */
+  commentCount: number
 }
 
 /** 種目（docs/api.md A-30・A-31） */

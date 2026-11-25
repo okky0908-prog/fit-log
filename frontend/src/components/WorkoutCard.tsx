@@ -20,7 +20,7 @@ interface Props {
  * 投稿カード（docs/screens.md「投稿カード」。タイムライン・プロフィールで共通）。カードの余白を押すと S-12 投稿詳細へ。
  * キーボード・読み上げでは、実施日のリンクで詳細へ移る。
  *
- * 💬 でコメント欄へ移るのは 13-4、ハッシュタグのリンクは段階 4 で足す
+ * ハッシュタグのリンクは段階 4 で足す
  */
 export function WorkoutCard({ workout, now }: Props) {
   const { user } = useAuth()
@@ -79,7 +79,7 @@ export function WorkoutCard({ workout, now }: Props) {
       {workout.images.length > 0 && <WorkoutImages urls={workout.images.map((i) => i.url)} />}
 
       <p className={styles.counts}>
-        <CommentCount count={workout.commentCount} />
+        <CommentCount count={workout.commentCount} workoutId={workout.id} />
         <LikeButton
           workoutId={workout.id}
           likeCount={workout.likeCount}
