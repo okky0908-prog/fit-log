@@ -5,7 +5,7 @@
     "correctness": "error",
     "suspicious": "warn"
   },
-  "ignorePatterns": ["dist", "coverage"],
+  "ignorePatterns": ["dist", "coverage", "playwright-report", "test-results"],
   "rules": {
     "react/rules-of-hooks": "error",
     "react/exhaustive-deps": "warn",
