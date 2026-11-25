@@ -1,5 +1,6 @@
 package com.okimoto.fitlog.notification.repository;
 
+import static com.okimoto.fitlog.jooq.Tables.COMMENTS;
 import static com.okimoto.fitlog.jooq.Tables.NOTIFICATIONS;
 import static com.okimoto.fitlog.jooq.Tables.USERS;
 import static com.okimoto.fitlog.jooq.Tables.WORKOUTS;
@@ -47,6 +48,7 @@ public class NotificationRepository {
         .set(NOTIFICATIONS.ACTOR_ID, notification.actorId())
         .set(NOTIFICATIONS.TYPE, notification.type())
         .set(NOTIFICATIONS.WORKOUT_ID, notification.workoutId())
+        .set(NOTIFICATIONS.COMMENT_ID, notification.commentId())
         .set(NOTIFICATIONS.CREATED_AT, notification.createdAt())
         .returning(NOTIFICATIONS.ID)
         .fetchSingle()
@@ -73,10 +75,14 @@ public class NotificationRepository {
             ACTOR.IS_PRIVATE,
             ACTOR.ICON_KEY,
             WORKOUTS.ID,
-            WORKOUTS.BODY)
+            WORKOUTS.BODY,
+            COMMENTS.ID,
+            COMMENTS.BODY)
         .from(NOTIFICATIONS)
         .leftJoin(ACTOR)
         .on(ACTOR.ID.eq(NOTIFICATIONS.ACTOR_ID))
+        .leftJoin(COMMENTS)
+        .on(COMMENTS.ID.eq(NOTIFICATIONS.COMMENT_ID))
         .leftJoin(WORKOUTS)
         .on(WORKOUTS.ID.eq(NOTIFICATIONS.WORKOUT_ID))
         .leftJoin(USERS)

@@ -41,6 +41,8 @@ public enum ErrorCode {
   METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "この URL では、この操作はできません"),
   /** 記録が存在しない・見てはいけない（403 にすると、その ID の記録があると分かってしまうため） */
   WORKOUT_NOT_FOUND(HttpStatus.NOT_FOUND, "記録が見つかりません"),
+  /** コメントが存在しない・その投稿を見てはいけない・返信元がその投稿のコメントでない（返信の続きでは、返信の ID も） */
+  COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "コメントが見つかりません"),
   /** 種目が存在しない・他人の自分専用の種目（ほかの人の種目があるとは分からないようにする）・最初から用意された種目を変えようとした */
   EXERCISE_NOT_FOUND(HttpStatus.NOT_FOUND, "種目が見つかりません"),
   /** ユーザーが存在しない（ユーザー名は大文字・小文字を区別しない） */

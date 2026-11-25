@@ -49,6 +49,16 @@ class NotificationCreatorTest {
   }
 
   @Test
+  void コメントの通知は_対象のコメントも保存する() {
+    creator.create(new NotificationEvent("comment", 1L, 2L, 30L, 500L));
+
+    verify(repository)
+        .insert(
+            new NewNotification(
+                1L, 2L, "comment", 30L, 500L, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC)));
+  }
+
+  @Test
   void 自分の操作で自分への通知は作らない() {
     creator.create(new NotificationEvent("comment", 1L, 1L, 30L));
 

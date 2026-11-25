@@ -54,6 +54,7 @@ public class NotificationCreator {
                   event.actorId(),
                   event.type(),
                   event.workoutId(),
+                  event.commentId(),
                   OffsetDateTime.now(clock)));
         }
       });

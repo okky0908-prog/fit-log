@@ -24,6 +24,7 @@ import java.util.List;
  * @param images 画像（並び順のとおり）
  * @param likeCount ナイストレーニングの数
  * @param likedByMe 見ている人が付けたか
+ * @param commentCount コメント数（返信を含む）
  */
 public record WorkoutCardRow(
     long id,
@@ -41,4 +42,5 @@ public record WorkoutCardRow(
     int otherExerciseCount,
     List<WorkoutDetail.Image> images,
     int likeCount,
-    boolean likedByMe) {}
+    boolean likedByMe,
+    int commentCount) {}

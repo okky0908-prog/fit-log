@@ -15,6 +15,8 @@ import java.time.OffsetDateTime;
  * @param actorIconKey 操作した人のアイコンの S3 のキー。なければ null
  * @param workoutId 対象の投稿。なければ null
  * @param workoutBody 対象の投稿のひとこと（抜き出す前）
+ * @param commentId 対象のコメント。なければ null
+ * @param commentBody 対象のコメントの本文（抜き出す前）
  */
 public record NotificationRow(
     long id,
@@ -26,4 +28,6 @@ public record NotificationRow(
     Boolean actorPrivate,
     String actorIconKey,
     Long workoutId,
-    String workoutBody) {}
+    String workoutBody,
+    Long commentId,
+    String commentBody) {}
