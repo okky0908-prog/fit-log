@@ -10,7 +10,7 @@ vi.mock('../lib/api/client', (original) =>
 )
 
 // S-10 ホーム（タイムライン）と投稿カード（docs/screens.md）。
-// 💪 を押す操作・💬 でコメント欄へは 13、ハッシュタグのリンクは段階 4、今週のひとことは段階 2 で足す
+// ハッシュタグのリンクは段階 4、今週のひとことは段階 2 で足す
 
 function summary(values: Partial<ExerciseSummary>): ExerciseSummary {
   return {
@@ -154,7 +154,8 @@ describe('投稿カード', () => {
     })
     const { router } = renderApp('/')
 
-    await userEvent.click(await screen.findByRole('link', { name: 'コメント欄へ（3件）' }))
+    // 読み上げの名前は、見えている数を含める（WCAG 2.5.3）
+    await userEvent.click(await screen.findByRole('link', { name: '3 コメント欄へ' }))
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/workouts/1'))
     expect(await screen.findByRole('textbox', { name: 'コメントを入力' })).toHaveFocus()

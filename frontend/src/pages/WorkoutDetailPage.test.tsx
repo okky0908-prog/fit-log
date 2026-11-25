@@ -326,7 +326,7 @@ test('← は直前の画面に戻り、戻る先がなければホームへ移�
   // 戻る先がない（URL を直接開いた）
   renderApp('/workouts/12')
 
-  await userEvent.click(await screen.findByRole('button', { name: '戻る' }))
+  await userEvent.click(await screen.findByRole('button', { name: '記録（戻る）' }))
 
   expect(await screen.findByRole('heading', { name: 'ホーム' })).toBeInTheDocument()
 })
@@ -342,7 +342,7 @@ test('戻る先があれば、ホームではなく直前の画面に戻る', as
   await router.navigate('/workouts/12')
   expect(await screen.findByText('記録12')).toBeInTheDocument()
 
-  await userEvent.click(screen.getByRole('button', { name: '戻る' }))
+  await userEvent.click(screen.getByRole('button', { name: '記録（戻る）' }))
 
   expect(await screen.findByText('記録7')).toBeInTheDocument()
 })
@@ -592,7 +592,7 @@ describe('コメント欄', () => {
       vi.mocked(api.fetchWorkout).mockResolvedValue(WORKOUT)
       renderApp('/workouts/12')
 
-      await userEvent.click(await screen.findByRole('button', { name: /コメント欄へ/ }))
+      await userEvent.click(await screen.findByRole('button', { name: 'コメント欄へ' }))
 
       expect(input()).toHaveFocus()
     })

@@ -8,7 +8,10 @@ interface Props {
   children: string
 }
 
-/** ← 直前の画面に戻る。アプリの中に戻る先がなければ fallback へ */
+/**
+ * ← 直前の画面に戻る。アプリの中に戻る先がなければ fallback へ。
+ * 読み上げの名前は「佐藤花子（戻る）」のように、見えている文字を含める（WCAG 2.5.3。音声で操作する人が、見えている文字で押せるように）
+ */
 export function BackButton({ fallback, children }: Props) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -18,10 +21,11 @@ export function BackButton({ fallback, children }: Props) {
     <button
       type="button"
       className={styles.back}
-      aria-label="戻る"
       onClick={() => (hasPrevious ? void navigate(-1) : void navigate(fallback))}
     >
-      ← {children}
+      <span aria-hidden="true">← </span>
+      {children}
+      <span className="visually-hidden">（戻る）</span>
     </button>
   )
 }

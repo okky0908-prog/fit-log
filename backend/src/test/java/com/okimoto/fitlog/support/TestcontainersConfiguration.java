@@ -77,8 +77,8 @@ public class TestcontainersConfiguration {
     }
   }
 
-  /** Mailpit の API の URL（http://ホスト:ポート） */
-  static String mailpitApiUrl() {
+  /** Mailpit の API の URL（http://ホスト:ポート）。E2E の起動（TestFitLogApplication）でも使う */
+  public static String mailpitApiUrl() {
     return "http://" + MAILPIT.getHost() + ":" + MAILPIT.getMappedPort(MAILPIT_API_PORT);
   }
 
