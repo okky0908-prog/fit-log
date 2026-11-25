@@ -18,7 +18,8 @@ export function CommentCount({ count, workoutId, onFocusInput }: Props) {
       {count > 0 && <span>{count}</span>}
     </>
   )
-  const label = `コメント欄へ（${count}件）`
+  // 読み上げの名前は、見えている数を単語として含める（WCAG 2.5.3。音声で操作する人が、見えている文字で押せるように）
+  const label = count > 0 ? `${count} コメント欄へ` : 'コメント欄へ'
   if (onFocusInput) {
     return (
       <button

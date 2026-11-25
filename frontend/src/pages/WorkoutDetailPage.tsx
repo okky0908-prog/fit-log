@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
+import { BackButton } from '../components/BackButton'
 import { CommentCount } from '../components/CommentCount'
 import { CommentSection } from '../components/CommentSection'
 import { EmojiIcon } from '../components/EmojiIcon'
@@ -30,7 +31,7 @@ export function WorkoutDetailPage() {
 
   return (
     <>
-      <BackButton />
+      <BackButton fallback="/">記録</BackButton>
       {id === null || isNotFound(query.error) ? (
         <p className={styles.message}>この記録は見つかりません</p>
       ) : query.error ? (
@@ -51,24 +52,6 @@ export function WorkoutDetailPage() {
 
 function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && error.code === 'WORKOUT_NOT_FOUND'
-}
-
-/** ← 直前の画面に戻る。URL を直接開いたなど、アプリの中に戻る先がなければホームへ */
-function BackButton() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  // 最初に開いた画面の location.key は 'default'
-  const hasPrevious = location.key !== 'default'
-  return (
-    <button
-      type="button"
-      className={styles.back}
-      aria-label="戻る"
-      onClick={() => (hasPrevious ? void navigate(-1) : void navigate('/'))}
-    >
-      ← 記録
-    </button>
-  )
 }
 
 function WorkoutView({ workout }: { workout: Workout }) {

@@ -51,6 +51,8 @@ describe('表示', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: '佐藤花子' })).toBeInTheDocument()
     expect(screen.getByText('@sato')).toBeInTheDocument()
+    // ← の読み上げの名前は、見えている文字（表示名）を含める（WCAG 2.5.3）
+    expect(screen.getByRole('button', { name: '佐藤花子（戻る）' })).toBeInTheDocument()
     expect(screen.getByText('週4で筋トレしています')).toBeInTheDocument()
     // アイコンがなければ表示名の頭文字
     expect(within(screen.getByRole('main')).getByTestId('avatar')).toHaveTextContent('佐')

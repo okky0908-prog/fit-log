@@ -132,7 +132,7 @@ describe('表示', () => {
     vi.mocked(api.fetchProfile).mockReturnValue(new Promise(() => {}))
     const { router } = renderApp('/users/sato/followers')
 
-    await userEvent.click(await screen.findByRole('button', { name: '戻る' }))
+    await userEvent.click(await screen.findByRole('button', { name: '@sato（戻る）' }))
 
     expect(router.state.location.pathname).toBe('/users/sato')
   })
