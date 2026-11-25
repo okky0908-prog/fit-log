@@ -9,7 +9,20 @@ import java.time.OffsetDateTime;
  * @param actorId 操作した人。目標の達成は null
  * @param type 種類（like・comment・reply・follow・follow_request・follow_accepted・goal_achieved・goal_cheer）
  * @param workoutId 対象の投稿。投稿についての通知でなければ null
+ * @param commentId 対象のコメント。コメント・返信の通知でなければ null
  * @param createdAt 作った日時
  */
 public record NewNotification(
-    long recipientId, Long actorId, String type, Long workoutId, OffsetDateTime createdAt) {}
+    long recipientId,
+    Long actorId,
+    String type,
+    Long workoutId,
+    Long commentId,
+    OffsetDateTime createdAt) {
+
+  /** コメントについての通知でないもの */
+  public NewNotification(
+      long recipientId, Long actorId, String type, Long workoutId, OffsetDateTime createdAt) {
+    this(recipientId, actorId, type, workoutId, null, createdAt);
+  }
+}

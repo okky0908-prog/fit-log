@@ -9,7 +9,7 @@ import java.util.function.Function;
 /**
  * 通知（docs/api.md「Notification」）。文言（「〇〇さんがあなたの記録にコメントしました」）は画面が type から作る。
  *
- * <p>コメント（13）・目標（段階 3）は、それぞれの表を作るまで null を返す
+ * <p>目標（段階 3）は、目標の表を作るまで null を返す
  *
  * @param id 通知
  * @param type 種類
@@ -58,7 +58,9 @@ public record NotificationResponse(
         row.workoutId() == null
             ? null
             : new Target(row.workoutId(), Excerpt.of(row.workoutBody(), EXCERPT_LENGTH)),
-        null,
+        row.commentId() == null
+            ? null
+            : new Target(row.commentId(), Excerpt.of(row.commentBody(), EXCERPT_LENGTH)),
         null);
   }
 }

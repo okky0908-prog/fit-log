@@ -1,5 +1,6 @@
 package com.okimoto.fitlog.notification.repository;
 
+import static com.okimoto.fitlog.jooq.Tables.COMMENTS;
 import static com.okimoto.fitlog.jooq.Tables.NOTIFICATIONS;
 import static com.okimoto.fitlog.jooq.Tables.USERS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -92,6 +93,30 @@ class NotificationRepositoryTest {
   }
 
   @Test
+  void コメントの通知は_対象のコメントの本文も返す() {
+    long workout = workouts.of(me).save();
+    long comment = comment(workout, sato, "フォームきれいでした！");
+    long notification = commentNotification(sato, me, workout, comment);
+
+    NotificationRow row = notificationRepository.findPage(me, null, 20).getFirst();
+
+    assertThat(row.id()).isEqualTo(notification);
+    assertThat(row.commentId()).isEqualTo(comment);
+    assertThat(row.commentBody()).isEqualTo("フォームきれいでした！");
+  }
+
+  @Test
+  void コメントを消すと_その通知も消える() {
+    long workout = workouts.of(me).save();
+    long comment = comment(workout, sato, "いいね");
+    long notification = commentNotification(sato, me, workout, comment);
+
+    dsl.deleteFrom(COMMENTS).where(COMMENTS.ID.eq(comment)).execute();
+
+    assertThat(dsl.fetchExists(NOTIFICATIONS, NOTIFICATIONS.ID.eq(notification))).isFalse();
+  }
+
+  @Test
   void 見られなくなった投稿についての通知は_一覧に出さない() {
     // 自分の投稿（どの公開範囲でも、自分は見られる）
     long myPrivate = workouts.of(me).visibility("private").save();
@@ -150,6 +175,8 @@ class NotificationRepositoryTest {
   @ParameterizedTest(name = "[{index}] {0}")
   @CsvSource({
     "ナイストレーニングに投稿がない, like, true, false",
+    "コメントにコメントがない, comment, true, true",
+    "返信にコメントがない, reply, true, true",
     "フォローに投稿がある, follow, true, true",
     "目標の達成に操作した人がいる, goal_achieved, true, false",
     "知らない種類, unknown, true, false",
@@ -196,7 +223,7 @@ class NotificationRepositoryTest {
     long target = like(sato, me, workout, NOW);
     long otherActor = like(suzuki, me, workout, NOW);
     long otherOnWorkout = like(sato, me, otherWorkout, NOW);
-    long otherType = insert("comment", sato, me, workout);
+    long otherType = commentNotification(sato, me, workout, comment(workout, sato, "いいね"));
 
     assertThat(notificationRepository.deleteFromActorOnWorkout(sato, workout, "like")).isEqualTo(1);
     assertThat(notificationRepository.deleteFromActorOnWorkout(sato, workout, "like")).isZero();
@@ -205,6 +232,22 @@ class NotificationRepositoryTest {
     for (long kept : new long[] {otherActor, otherOnWorkout, otherType}) {
       assertThat(dsl.fetchExists(NOTIFICATIONS, NOTIFICATIONS.ID.eq(kept))).isTrue();
     }
+  }
+
+  private long comment(long workoutId, long userId, String body) {
+    return dsl.insertInto(COMMENTS)
+        .set(COMMENTS.WORKOUT_ID, workoutId)
+        .set(COMMENTS.USER_ID, userId)
+        .set(COMMENTS.BODY, body)
+        .set(COMMENTS.CREATED_AT, NOW)
+        .returning(COMMENTS.ID)
+        .fetchSingle()
+        .getId();
+  }
+
+  private long commentNotification(long actor, long recipient, long workoutId, long commentId) {
+    return notificationRepository.insert(
+        new NewNotification(recipient, actor, "comment", workoutId, commentId, NOW));
   }
 
   private long like(long actor, long recipient, long workoutId, OffsetDateTime at) {

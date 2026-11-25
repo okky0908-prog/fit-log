@@ -142,8 +142,9 @@ public class WorkoutCardRepository {
                         .where(WORKOUT_IMAGES.WORKOUT_ID.eq(WORKOUTS.ID))
                         .orderBy(WORKOUT_IMAGES.SORT_ORDER))
                 .convertFrom(r -> r.map(Records.mapping(WorkoutDetail.Image::new))),
-            LikeFields.likeCount(),
-            LikeFields.likedBy(me))
+            ReactionFields.likeCount(),
+            ReactionFields.likedBy(me),
+            ReactionFields.commentCount())
         .from(WORKOUTS)
         .join(USERS)
         .on(USERS.ID.eq(WORKOUTS.USER_ID))

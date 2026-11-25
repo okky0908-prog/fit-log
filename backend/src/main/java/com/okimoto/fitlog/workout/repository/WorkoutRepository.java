@@ -101,6 +101,17 @@ public class WorkoutRepository {
         .fetchOptional(WORKOUTS.USER_ID);
   }
 
+  /** 見てよい記録（{@link WorkoutVisibility}）か。読むだけの操作（コメント一覧）で使う。ロックしない */
+  public boolean existsVisible(long id, long me) {
+    return dsl.fetchExists(
+        dsl.selectOne()
+            .from(WORKOUTS)
+            .join(USERS)
+            .on(USERS.ID.eq(WORKOUTS.USER_ID))
+            .where(WORKOUTS.ID.eq(id))
+            .and(WorkoutVisibility.visibleTo(me)));
+  }
+
   /**
    * ナイストレーニング・コメントの前に、見てよい記録（{@link WorkoutVisibility}）の投稿者を取る。記録の行を共有ロック（FOR
    * SHARE）して、確かめてから書き込むまでの間に記録が消されないようにする（同じ記録への操作どうしは待たせない）。
@@ -234,8 +245,9 @@ public class WorkoutRepository {
                         .where(WORKOUT_IMAGES.WORKOUT_ID.eq(WORKOUTS.ID))
                         .orderBy(WORKOUT_IMAGES.SORT_ORDER))
                 .convertFrom(r -> r.map(Records.mapping(WorkoutDetail.Image::new))),
-            LikeFields.likeCount(),
-            LikeFields.likedBy(me))
+            ReactionFields.likeCount(),
+            ReactionFields.likedBy(me),
+            ReactionFields.commentCount())
         .from(WORKOUTS)
         .join(USERS)
         .on(USERS.ID.eq(WORKOUTS.USER_ID))

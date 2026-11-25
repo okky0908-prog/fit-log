@@ -13,7 +13,7 @@ import java.util.function.Function;
  * 記録の詳細（docs/api.md「Workout」）。他人にも返す形なので、項目を足すときは本人以外に出してよいかを考える（docs/test-plan.md 4.2
  * の許可リストのテストが落ちる）。
  *
- * <p>まだ作っていない機能の項目は、決まった値を返す：{@code commentCount} は 0（13-2）、{@code personalBest} は false（段階 2）
+ * <p>まだ作っていない機能の項目は、決まった値を返す：{@code personalBest} は false（段階 2）
  *
  * @param id 記録
  * @param author 投稿者
@@ -98,7 +98,7 @@ public record WorkoutResponse(
             .toList(),
         detail.likeCount(),
         detail.likedByMe(),
-        0,
+        detail.commentCount(),
         detail.userId() == me);
   }
 
