@@ -1,7 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
+import { CommentCount } from '../components/CommentCount'
 import { EmojiIcon } from '../components/EmojiIcon'
+import { LikeButton } from '../components/LikeButton'
 import { WorkoutHeader } from '../components/WorkoutHeader'
 import { WorkoutImages } from '../components/WorkoutImages'
 import { ApiError, errorMessage, fetchWorkout } from '../lib/api/client'
@@ -13,7 +15,7 @@ import styles from './WorkoutDetailPage.module.css'
 /**
  * S-12 投稿詳細（docs/screens.md）。
  *
- * ナイストレーニング・コメント（docs/test-plan.md 8.2 の 13）、消費カロリー（段階 5）、ハッシュタグのリンク（段階 4）、
+ * コメント欄（docs/test-plan.md 8.2 の 13-4）、消費カロリー（段階 5）、ハッシュタグのリンク（段階 4）、
  * 投稿者へのリンク（11）、`…` メニューの「複製」「テンプレートとして保存」（段階 4）は、それぞれの PR で足す
  */
 export function WorkoutDetailPage() {
@@ -100,6 +102,15 @@ function WorkoutView({ workout }: { workout: Workout }) {
       ))}
 
       {workout.images.length > 0 && <WorkoutImages urls={workout.images.map((i) => i.url)} />}
+
+      <p className={styles.counts}>
+        <CommentCount count={workout.commentCount} />
+        <LikeButton
+          workoutId={workout.id}
+          likeCount={workout.likeCount}
+          likedByMe={workout.likedByMe}
+        />
+      </p>
     </article>
   )
 }

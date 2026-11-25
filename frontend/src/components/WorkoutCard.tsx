@@ -4,6 +4,8 @@ import { Link, useNavigate } from 'react-router'
 import type { WorkoutCard as Card } from '../lib/api/types'
 import { useAuth } from '../lib/auth/authContext'
 import { formatExerciseSummary, type Units } from '../lib/format/workout'
+import { CommentCount } from './CommentCount'
+import { LikeButton } from './LikeButton'
 import { WorkoutHeader } from './WorkoutHeader'
 import { WorkoutImages } from './WorkoutImages'
 import styles from './WorkoutCard.module.css'
@@ -18,7 +20,7 @@ interface Props {
  * 投稿カード（docs/screens.md「投稿カード」。タイムライン・プロフィールで共通）。カードの余白を押すと S-12 投稿詳細へ。
  * キーボード・読み上げでは、実施日のリンクで詳細へ移る。
  *
- * 💪 を押して付ける・取り消す、💬 でコメント欄へ移るのは 13、ハッシュタグのリンクは段階 4 で足す
+ * 💬 でコメント欄へ移るのは 13-4、ハッシュタグのリンクは段階 4 で足す
  */
 export function WorkoutCard({ workout, now }: Props) {
   const { user } = useAuth()
@@ -77,20 +79,13 @@ export function WorkoutCard({ workout, now }: Props) {
       {workout.images.length > 0 && <WorkoutImages urls={workout.images.map((i) => i.url)} />}
 
       <p className={styles.counts}>
-        <Count emoji="💬" label="コメント" count={workout.commentCount} />
-        <Count emoji="💪" label="ナイストレーニング" count={workout.likeCount} />
+        <CommentCount count={workout.commentCount} />
+        <LikeButton
+          workoutId={workout.id}
+          likeCount={workout.likeCount}
+          likedByMe={workout.likedByMe}
+        />
       </p>
     </article>
-  )
-}
-
-/** 💬・💪 と数。0 なら数字を出さない */
-function Count({ emoji, label, count }: { emoji: string; label: string; count: number }) {
-  return (
-    <span title={label} className={styles.count}>
-      <span aria-hidden="true">{emoji}</span>
-      <span className="visually-hidden">{label}</span>
-      {count > 0 && <span>{count}</span>}
-    </span>
   )
 }

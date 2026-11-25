@@ -54,12 +54,8 @@
 
 .counts {
   display: flex;
-  gap: 24px;
+  gap: 16px;
+  align-items: center;
   margin: 12px 0 0;
   color: var(--color-text-muted);
-}
-
-.count {
-  display: inline-flex;
-  gap: 4px;
 }

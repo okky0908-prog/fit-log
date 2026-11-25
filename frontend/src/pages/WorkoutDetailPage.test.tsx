@@ -10,7 +10,7 @@ vi.mock('../lib/api/client', (original) =>
 )
 
 // S-12 投稿詳細（docs/screens.md）。表示・単位・見られない記録・自分の記録の削除。
-// ナイストレーニング・コメント（13）・消費カロリー（段階 5）は、それぞれの PR で足す
+// コメント欄（13-4）・消費カロリー（段階 5）は、それぞれの PR で足す
 
 const NOW = new Date('2026-11-22T10:00:00+09:00')
 
@@ -68,6 +68,7 @@ beforeEach(() => {
   vi.setSystemTime(NOW)
   vi.mocked(api.fetchWorkout).mockReset()
   vi.mocked(api.deleteWorkout).mockReset()
+  vi.mocked(api.likeWorkout).mockReset()
   startAs(ME)
 })
 
@@ -160,6 +161,23 @@ describe('表示', () => {
 
     expect(await screen.findByText('自分のみ')).toBeInTheDocument()
   })
+})
+
+test('コメント数と、ナイストレーニングのボタンを出し、押すと付ける', async () => {
+  vi.mocked(api.fetchWorkout).mockResolvedValue({ ...WORKOUT, commentCount: 3, likeCount: 12 })
+  vi.mocked(api.likeWorkout).mockResolvedValue({ likeCount: 13, likedByMe: true })
+  renderApp('/workouts/12')
+
+  const article = await screen.findByRole('article')
+  expect(within(article).getByTitle('コメント')).toHaveTextContent('3')
+  const button = within(article).getByRole('button', { name: /ナイストレーニング/ })
+  expect(button).toHaveAttribute('aria-pressed', 'false')
+
+  await userEvent.click(button)
+
+  expect(api.likeWorkout).toHaveBeenCalledWith(12)
+  await waitFor(() => expect(button).toHaveTextContent(/13$/))
+  expect(button).toHaveAttribute('aria-pressed', 'true')
 })
 
 test('投稿者のアイコン・表示名・ユーザー名は、押すとその人のプロフィールへ移る', async () => {

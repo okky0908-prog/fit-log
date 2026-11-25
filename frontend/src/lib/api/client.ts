@@ -9,6 +9,7 @@ import type {
   VerifyEmailResult,
   Workout,
   WorkoutCard,
+  LikeState,
   Exercise,
   NotificationItem,
   Page,
@@ -223,6 +224,18 @@ export function fetchWorkout(id: number): Promise<Workout> {
 /** A-23 記録の削除。他人の記録は 403（FORBIDDEN） */
 export function deleteWorkout(id: number): Promise<void> {
   return apiFetch(`/api/workouts/${id}`, { method: 'DELETE', auth: true })
+}
+
+// ===== ナイストレーニング（A-63・A-64） =====
+
+/** A-63 ナイストレーニングを付ける。すでに付いていても今の状態が返る */
+export function likeWorkout(workoutId: number): Promise<LikeState> {
+  return apiFetch(`/api/workouts/${workoutId}/likes`, { method: 'POST', auth: true })
+}
+
+/** A-64 ナイストレーニングを取り消す。付いていなくても今の状態が返る */
+export function unlikeWorkout(workoutId: number): Promise<LikeState> {
+  return apiFetch(`/api/workouts/${workoutId}/likes`, { method: 'DELETE', auth: true })
 }
 
 // ===== 記録の作成・編集（A-20・A-22）・種目（A-30・A-31） =====

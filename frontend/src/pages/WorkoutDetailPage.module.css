@@ -71,3 +71,10 @@
   color: var(--color-text-muted);
   text-align: right;
 }
+
+.counts {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin: 16px 0 0;
+}
