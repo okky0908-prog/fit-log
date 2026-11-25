@@ -171,6 +171,12 @@ export interface WorkoutCard {
   mine: boolean
 }
 
+/** ナイストレーニングの数と、自分が付けたか（A-63・A-64 の応答。Workout・WorkoutCard の同じ名前の項目） */
+export interface LikeState {
+  likeCount: number
+  likedByMe: boolean
+}
+
 /** 種目（docs/api.md A-30・A-31） */
 export interface Exercise {
   id: number

@@ -23,6 +23,8 @@ export async function mockApiClient(importOriginal: () => Promise<typeof api>) {
     setUnauthorizedHandler: vi.fn<typeof actual.setUnauthorizedHandler>(),
     fetchWorkout: vi.fn<typeof actual.fetchWorkout>(),
     deleteWorkout: vi.fn<typeof actual.deleteWorkout>(),
+    likeWorkout: vi.fn<typeof actual.likeWorkout>(),
+    unlikeWorkout: vi.fn<typeof actual.unlikeWorkout>(),
     createWorkout: vi.fn<typeof actual.createWorkout>(),
     updateWorkout: vi.fn<typeof actual.updateWorkout>(),
     searchExercises: vi.fn<typeof actual.searchExercises>(),

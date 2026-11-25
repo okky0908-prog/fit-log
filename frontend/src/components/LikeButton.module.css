@@ -1,0 +1,30 @@
+.button,
+.liked {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--color-background);
+}
+
+/* 付けたときはアイコンの色を変える（F-42）。色だけに頼らないよう、枠と背景も変える */
+.liked {
+  border-color: var(--color-primary);
+  background: var(--color-primary-surface);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.button:disabled,
+.liked:disabled {
+  cursor: default;
+}

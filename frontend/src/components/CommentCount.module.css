@@ -1,0 +1,7 @@
+.count {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 8px;
+  color: var(--color-text-muted);
+}

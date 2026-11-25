@@ -561,6 +561,24 @@ describe('フォロー・プロフィール（A-70〜A-73・A-80）', () => {
   })
 })
 
+describe('ナイストレーニング（A-63・A-64）', () => {
+  test('付けるのは POST、取り消すのは DELETE で、数と付けたかが返る', async () => {
+    await loggedIn()
+    fetchMock
+      .mockResolvedValueOnce(json(200, { likeCount: 3, likedByMe: true }))
+      .mockResolvedValueOnce(json(200, { likeCount: 2, likedByMe: false }))
+
+    await expect(client.likeWorkout(12)).resolves.toEqual({ likeCount: 3, likedByMe: true })
+    await expect(client.unlikeWorkout(12)).resolves.toEqual({ likeCount: 2, likedByMe: false })
+
+    expect(call(1).url).toBe('/api/workouts/12/likes')
+    expect(call(1).init.method).toBe('POST')
+    expect(call(2).url).toBe('/api/workouts/12/likes')
+    expect(call(2).init.method).toBe('DELETE')
+    expect(authorization(1)).toBe('Bearer access-1')
+  })
+})
+
 describe('タイムライン・記録の一覧（A-50〜A-53・A-81）', () => {
   const page = { items: [], nextCursor: null, hasNext: false }
 

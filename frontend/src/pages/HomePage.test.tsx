@@ -58,6 +58,8 @@ beforeEach(() => {
   vi.mocked(api.fetchTimeline).mockReset()
   vi.mocked(api.fetchNewPostCount).mockReset()
   vi.mocked(api.deleteWorkout).mockReset()
+  vi.mocked(api.likeWorkout).mockReset()
+  vi.mocked(api.unlikeWorkout).mockReset()
   startAs(ME)
 })
 
@@ -160,6 +162,85 @@ describe('投稿カード', () => {
     expect(await screen.findByText('記録を削除しました')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('article')).not.toBeInTheDocument())
     expect(router.state.location.pathname).toBe('/')
+  })
+})
+
+describe('ナイストレーニング', () => {
+  const likeButton = () => screen.getByRole('button', { name: /ナイストレーニング/ })
+
+  test('押すとすぐ付けた状態にして数を増やし、送り終えたら返ってきた数に合わせる', async () => {
+    let resolve: (state: { likeCount: number; likedByMe: boolean }) => void = () => {}
+    vi.mocked(api.likeWorkout).mockReturnValue(new Promise((r) => (resolve = r)))
+    vi.mocked(api.fetchTimeline).mockResolvedValue(page([card({ likeCount: 0 })]))
+    const { router } = renderApp('/')
+    await screen.findByRole('article')
+    expect(likeButton()).toHaveAttribute('aria-pressed', 'false')
+
+    await userEvent.click(likeButton())
+
+    expect(likeButton()).toHaveAttribute('aria-pressed', 'true')
+    expect(likeButton()).toHaveTextContent(/^💪ナイストレーニング1$/)
+    // 送信中は押せない（連打で2回送らない）
+    expect(likeButton()).toBeDisabled()
+    expect(api.likeWorkout).toHaveBeenCalledWith(1)
+    // ボタンを押しても、詳細には移らない
+    expect(router.state.location.pathname).toBe('/')
+
+    resolve({ likeCount: 3, likedByMe: true })
+    await waitFor(() => expect(likeButton()).toHaveTextContent(/3$/))
+    expect(likeButton()).toBeEnabled()
+  })
+
+  test('付けていれば、押すと取り消して数を減らす', async () => {
+    vi.mocked(api.unlikeWorkout).mockResolvedValue({ likeCount: 11, likedByMe: false })
+    vi.mocked(api.fetchTimeline).mockResolvedValue(page([card({ likeCount: 12, likedByMe: true })]))
+    renderApp('/')
+    await screen.findByRole('article')
+    expect(likeButton()).toHaveAttribute('aria-pressed', 'true')
+
+    await userEvent.click(likeButton())
+
+    expect(api.unlikeWorkout).toHaveBeenCalledWith(1)
+    expect(api.likeWorkout).not.toHaveBeenCalled()
+    expect(likeButton()).toHaveAttribute('aria-pressed', 'false')
+    await waitFor(() => expect(likeButton()).toHaveTextContent(/11$/))
+  })
+
+  test('送れなければ元に戻し、お知らせで理由を出す', async () => {
+    vi.mocked(api.likeWorkout).mockRejectedValue(
+      new api.ApiError(404, 'WORKOUT_NOT_FOUND', '記録が見つかりません'),
+    )
+    vi.mocked(api.fetchTimeline).mockResolvedValue(page([card({ likeCount: 2 })]))
+    renderApp('/')
+    await screen.findByRole('article')
+
+    await userEvent.click(likeButton())
+
+    expect(await screen.findByText('記録が見つかりません')).toBeInTheDocument()
+    expect(likeButton()).toHaveAttribute('aria-pressed', 'false')
+    expect(likeButton()).toHaveTextContent(/2$/)
+  })
+
+  test('詳細で押した結果は、タイムラインに戻っても同じ', async () => {
+    vi.mocked(api.likeWorkout).mockResolvedValue({ likeCount: 1, likedByMe: true })
+    vi.mocked(api.fetchTimeline).mockResolvedValue(page([card({ likeCount: 0 })]))
+    vi.mocked(api.fetchWorkout).mockResolvedValue({
+      ...card({ likeCount: 0 }),
+      durationMin: null,
+      exercises: [],
+    })
+    const { router } = renderApp('/')
+    await userEvent.click(await screen.findByText('今日は脚の日！'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/workouts/1'))
+    await userEvent.click(await screen.findByRole('button', { name: /ナイストレーニング/ }))
+    await waitFor(() => expect(api.likeWorkout).toHaveBeenCalled())
+
+    await router.navigate(-1)
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    expect(await screen.findByRole('article', { name: '佐藤花子の記録' })).toBeInTheDocument()
+    expect(likeButton()).toHaveAttribute('aria-pressed', 'true')
+    expect(likeButton()).toHaveTextContent(/1$/)
   })
 })
 

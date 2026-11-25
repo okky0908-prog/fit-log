@@ -40,6 +40,7 @@ beforeEach(() => {
   vi.mocked(api.followUser).mockReset()
   vi.mocked(api.unfollowUser).mockReset()
   vi.mocked(api.fetchUserWorkouts).mockReset()
+  vi.mocked(api.likeWorkout).mockReset()
   startAs(ME)
 })
 
@@ -239,6 +240,24 @@ describe('記録の一覧', () => {
     await userEvent.click(within(records).getByRole('button', { name: 'さらに表示' }))
     expect(await within(records).findByText('胸の日')).toBeInTheDocument()
     expect(api.fetchUserWorkouts).toHaveBeenLastCalledWith('sato', 'next')
+  })
+
+  test('記録のナイストレーニングを押すと、すぐ付けた状態になる', async () => {
+    vi.mocked(api.fetchProfile).mockResolvedValue(SATO)
+    vi.mocked(api.fetchUserWorkouts).mockResolvedValue({
+      items: [card(1, '脚の日')],
+      nextCursor: null,
+      hasNext: false,
+    })
+    vi.mocked(api.likeWorkout).mockReturnValue(new Promise(() => {}))
+    renderApp('/users/sato')
+
+    const button = await screen.findByRole('button', { name: /ナイストレーニング/ })
+    await userEvent.click(button)
+
+    expect(api.likeWorkout).toHaveBeenCalledWith(1)
+    expect(button).toHaveAttribute('aria-pressed', 'true')
+    expect(button).toHaveTextContent(/1$/)
   })
 
   test('記録がなければ「まだ記録がありません」', async () => {
