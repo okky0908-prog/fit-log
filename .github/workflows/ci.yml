@@ -1,8 +1,8 @@
 # PR と main への push のたびに、バックエンドとフロントエンドのビルドとテストを実行する。
 # マージは、この CI が通ってから行う（CLAUDE.md のリポジトリ運用ルール）。
-# E2E は、それを作る PR で足す（docs/test-plan.md 8.1）
+# E2E（Playwright）のジョブは 14-1 で足した（docs/test-plan.md 8.1）
 #
-# main のブランチ保護で、2つのジョブ（バックエンド・フロントエンド）を必須のチェックにしている（CLAUDE.md の 5）。
+# main のブランチ保護で、3つのジョブ（バックエンド・フロントエンド・E2E）を必須のチェックにしている（CLAUDE.md の 5）。
 # - on に paths の絞り込みを入れない（文書だけの PR で CI が動かず、マージできなくなる）
 # - ジョブの name を変えるときは、ブランチ保護の必須のチェックも直す
 name: CI
@@ -99,4 +99,46 @@ jobs:
         with:
           name: frontend-coverage
           path: frontend/coverage/
+          if-no-files-found: ignore
+
+  e2e:
+    name: E2E テスト（Playwright）
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      # バックエンドは ./gradlew bootTestRun で、使い捨てのコンテナ（PostgreSQL・Mailpit・LocalStack）につないで起動する
+      # （playwright.config.ts が起動する）
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: frontend
+
+      - name: ブラウザ（Chromium）を入れる
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - run: npm run test:e2e
+        working-directory: frontend
+
+      - name: E2E の結果を保存（失敗したときの確認用。操作の記録・画面の写真）
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
           if-no-files-found: ignore
