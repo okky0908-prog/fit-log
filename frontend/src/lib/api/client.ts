@@ -10,6 +10,9 @@ import type {
   Workout,
   WorkoutCard,
   LikeState,
+  Comment,
+  PostedComment,
+  Reply,
   Exercise,
   NotificationItem,
   Page,
@@ -236,6 +239,36 @@ export function likeWorkout(workoutId: number): Promise<LikeState> {
 /** A-64 ナイストレーニングを取り消す。付いていなくても今の状態が返る */
 export function unlikeWorkout(workoutId: number): Promise<LikeState> {
   return apiFetch(`/api/workouts/${workoutId}/likes`, { method: 'DELETE', auth: true })
+}
+
+// ===== コメント・返信（A-60〜A-62・A-65） =====
+
+/** A-60 コメント一覧（返信でないコメントを古い順に20件。返信は各コメントに3件まで） */
+export function fetchComments(workoutId: number, cursor?: string): Promise<Page<Comment>> {
+  return apiFetch(`/api/workouts/${workoutId}/comments${cursorQuery(cursor)}`, { auth: true })
+}
+
+/** A-61 コメント・返信の投稿。replyToCommentId は返信するコメント・返信 */
+export function postComment(
+  workoutId: number,
+  body: string,
+  replyToCommentId?: number,
+): Promise<PostedComment> {
+  return apiFetch(`/api/workouts/${workoutId}/comments`, {
+    method: 'POST',
+    body: replyToCommentId === undefined ? { body } : { body, replyToCommentId },
+    auth: true,
+  })
+}
+
+/** A-62 コメントの削除。削除後のコメント数が返る */
+export function deleteComment(commentId: number): Promise<{ commentCount: number }> {
+  return apiFetch(`/api/comments/${commentId}`, { method: 'DELETE', auth: true })
+}
+
+/** A-65 返信の続き（古い順に20件）。最初は A-60 の repliesNextCursor を渡す */
+export function fetchReplies(commentId: number, cursor?: string): Promise<Page<Reply>> {
+  return apiFetch(`/api/comments/${commentId}/replies${cursorQuery(cursor)}`, { auth: true })
 }
 
 // ===== 記録の作成・編集（A-20・A-22）・種目（A-30・A-31） =====

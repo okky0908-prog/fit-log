@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { CommentCount } from '../components/CommentCount'
+import { CommentSection } from '../components/CommentSection'
 import { EmojiIcon } from '../components/EmojiIcon'
 import { LikeButton } from '../components/LikeButton'
 import { WorkoutHeader } from '../components/WorkoutHeader'
@@ -15,7 +16,7 @@ import styles from './WorkoutDetailPage.module.css'
 /**
  * S-12 投稿詳細（docs/screens.md）。
  *
- * コメント欄（docs/test-plan.md 8.2 の 13-4）、消費カロリー（段階 5）、ハッシュタグのリンク（段階 4）、
+ * 消費カロリー（段階 5）、ハッシュタグのリンク（段階 4）、
  * 投稿者へのリンク（11）、`…` メニューの「複製」「テンプレートとして保存」（段階 4）は、それぞれの PR で足す
  */
 export function WorkoutDetailPage() {
@@ -80,38 +81,51 @@ function WorkoutView({ workout }: { workout: Workout }) {
   }
   // 「◯分前に投稿」の基準。描き直すたびに変わらないよう、開いたときの時刻を持つ
   const [now] = useState(() => new Date())
+  // 💬 を押したときと、投稿カードの 💬 から来たときに、コメントの入力欄にカーソルを合わせる
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const location = useLocation()
+  const focusComment = (location.state as { focusComment?: boolean } | null)?.focusComment === true
+  useEffect(() => {
+    if (focusComment) inputRef.current?.focus()
+  }, [focusComment])
 
   return (
-    <article className={styles.card}>
-      <WorkoutHeader
-        workout={workout}
-        now={now}
-        onDeleted={() => {
-          queryClient.removeQueries({ queryKey: ['workout', workout.id] })
-          void navigate('/')
-        }}
-      />
-
-      {workout.body && <p className={styles.body}>{workout.body}</p>}
-      {workout.durationMin !== null && (
-        <p className={styles.duration}>トレーニング時間 {workout.durationMin}分</p>
-      )}
-
-      {workout.exercises.map((exercise, index) => (
-        <ExerciseView key={index} exercise={exercise} units={units} />
-      ))}
-
-      {workout.images.length > 0 && <WorkoutImages urls={workout.images.map((i) => i.url)} />}
-
-      <p className={styles.counts}>
-        <CommentCount count={workout.commentCount} />
-        <LikeButton
-          workoutId={workout.id}
-          likeCount={workout.likeCount}
-          likedByMe={workout.likedByMe}
+    <>
+      <article className={styles.card}>
+        <WorkoutHeader
+          workout={workout}
+          now={now}
+          onDeleted={() => {
+            queryClient.removeQueries({ queryKey: ['workout', workout.id] })
+            void navigate('/')
+          }}
         />
-      </p>
-    </article>
+
+        {workout.body && <p className={styles.body}>{workout.body}</p>}
+        {workout.durationMin !== null && (
+          <p className={styles.duration}>トレーニング時間 {workout.durationMin}分</p>
+        )}
+
+        {workout.exercises.map((exercise, index) => (
+          <ExerciseView key={index} exercise={exercise} units={units} />
+        ))}
+
+        {workout.images.length > 0 && <WorkoutImages urls={workout.images.map((i) => i.url)} />}
+
+        <p className={styles.counts}>
+          <CommentCount
+            count={workout.commentCount}
+            onFocusInput={() => inputRef.current?.focus()}
+          />
+          <LikeButton
+            workoutId={workout.id}
+            likeCount={workout.likeCount}
+            likedByMe={workout.likedByMe}
+          />
+        </p>
+      </article>
+      <CommentSection workoutId={workout.id} visibility={workout.visibility} inputRef={inputRef} />
+    </>
   )
 }
 

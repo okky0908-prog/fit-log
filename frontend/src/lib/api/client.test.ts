@@ -579,6 +579,52 @@ describe('ナイストレーニング（A-63・A-64）', () => {
   })
 })
 
+describe('コメント・返信（A-60〜A-62・A-65）', () => {
+  const page = { items: [], nextCursor: null, hasNext: false }
+
+  test('一覧と返信の続き。続きはカーソルを付ける', async () => {
+    await loggedIn()
+    fetchMock.mockImplementation(async () => json(200, page))
+
+    await expect(client.fetchComments(12)).resolves.toEqual(page)
+    await client.fetchComments(12, 'abc_-1')
+    await client.fetchReplies(501)
+    await client.fetchReplies(501, 'abc_-1')
+
+    expect(call(1).url).toBe('/api/workouts/12/comments')
+    expect(call(2).url).toBe('/api/workouts/12/comments?cursor=abc_-1')
+    expect(call(3).url).toBe('/api/comments/501/replies')
+    expect(call(4).url).toBe('/api/comments/501/replies?cursor=abc_-1')
+  })
+
+  test('投稿は本文と、返信なら返信するコメントを JSON で送る', async () => {
+    await loggedIn()
+    const posted = { comment: { id: 1 }, commentCount: 3 }
+    fetchMock.mockImplementation(async () => json(201, posted))
+
+    await expect(client.postComment(12, 'ナイス')).resolves.toEqual(posted)
+    await client.postComment(12, '@sato ありがとう', 501)
+
+    expect(call(1).url).toBe('/api/workouts/12/comments')
+    expect(call(1).init.method).toBe('POST')
+    expect(JSON.parse(call(1).init.body as string)).toEqual({ body: 'ナイス' })
+    expect(JSON.parse(call(2).init.body as string)).toEqual({
+      body: '@sato ありがとう',
+      replyToCommentId: 501,
+    })
+  })
+
+  test('削除は DELETE で、削除後のコメント数が返る', async () => {
+    await loggedIn()
+    fetchMock.mockResolvedValueOnce(json(200, { commentCount: 2 }))
+
+    await expect(client.deleteComment(501)).resolves.toEqual({ commentCount: 2 })
+
+    expect(call(1).url).toBe('/api/comments/501')
+    expect(call(1).init.method).toBe('DELETE')
+  })
+})
+
 describe('タイムライン・記録の一覧（A-50〜A-53・A-81）', () => {
   const page = { items: [], nextCursor: null, hasNext: false }
 

@@ -25,6 +25,11 @@ export async function mockApiClient(importOriginal: () => Promise<typeof api>) {
     deleteWorkout: vi.fn<typeof actual.deleteWorkout>(),
     likeWorkout: vi.fn<typeof actual.likeWorkout>(),
     unlikeWorkout: vi.fn<typeof actual.unlikeWorkout>(),
+    // 投稿詳細は多くの画面のテストで開くので、コメント一覧の既定は「0件」にしておく
+    fetchComments: vi.fn<typeof actual.fetchComments>(async () => EMPTY_PAGE),
+    postComment: vi.fn<typeof actual.postComment>(),
+    deleteComment: vi.fn<typeof actual.deleteComment>(),
+    fetchReplies: vi.fn<typeof actual.fetchReplies>(),
     createWorkout: vi.fn<typeof actual.createWorkout>(),
     updateWorkout: vi.fn<typeof actual.updateWorkout>(),
     searchExercises: vi.fn<typeof actual.searchExercises>(),

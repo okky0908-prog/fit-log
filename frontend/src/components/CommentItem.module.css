@@ -1,0 +1,85 @@
+.thread {
+  display: grid;
+  gap: 8px;
+}
+
+.entry {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  align-items: baseline;
+  margin: 0;
+}
+
+.displayName {
+  font-weight: 700;
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.body {
+  margin: 2px 0 0;
+  /* 改行をそのまま出す。長い英数字は折り返す */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mention {
+  color: var(--color-primary);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.action,
+.danger,
+.moreReplies {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.danger {
+  color: var(--color-danger);
+}
+
+/* 返信は、返信元の下に一段下げて並べる（返信は1段だけ） */
+.replies {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 0 42px;
+  padding: 0;
+  list-style: none;
+}
+
+.moreReplies,
+.replyForm {
+  margin-left: 42px;
+}
+
+.moreReplies {
+  justify-self: start;
+  color: var(--color-primary);
+  font-weight: 700;
+}

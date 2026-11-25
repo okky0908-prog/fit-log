@@ -1,7 +1,21 @@
-.count {
+.count,
+.action {
   display: inline-flex;
   gap: 4px;
   align-items: center;
   padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
   color: var(--color-text-muted);
+  font: inherit;
+  text-decoration: none;
+}
+
+.action {
+  cursor: pointer;
+}
+
+.action:hover {
+  background: var(--color-background);
 }
