@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import * as api from '../lib/api/client'
@@ -154,8 +154,12 @@ describe('作成', () => {
       },
       [],
     )
-    // 詳細の画面（作成の画面は履歴に残さない）
-    expect(await screen.findByRole('region', { name: 'ベンチプレス（胸）' })).toBeInTheDocument()
+    // 詳細の画面（作成の画面は履歴に残さない）。作成の画面にも同じ名前の領域があり、画面の移動はお知らせより
+    // 後に描かれる（React Router の startTransition）ので、作成の画面が消えるのを待ってから確かめる
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: '新しい記録' })).not.toBeInTheDocument(),
+    )
+    expect(screen.getByRole('region', { name: 'ベンチプレス（胸）' })).toBeInTheDocument()
   })
 
   test('自己ベストを更新した種目があれば、お知らせで伝える', async () => {
