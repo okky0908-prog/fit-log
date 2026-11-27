@@ -540,6 +540,7 @@ erDiagram
 
 - **UNIQUE(user_id, recorded_on)**：1日1件。同じ日に記録したら上書きする（`INSERT … ON CONFLICT (user_id, recorded_on) DO UPDATE`。F-90）
 - 本人以外の API の応答には、どの形でも含めない（[要件定義書 7章](./requirements.md)）
+- 実装（`BodyRecordRepository.upsert`）では、`RETURNING (xmax = 0)` で「新しく作ったか」を受け取り、A-100 の 201・200 を分ける（`xmax` は、INSERT した行なら 0、ON CONFLICT DO UPDATE で更新した行なら 0 以外）
 
 ### goals（目標）
 
@@ -964,12 +965,12 @@ CREATE INDEX idx_users_display_name_bigm  ON users    USING gin (LOWER(display_n
 | `V6__create_workout_images.sql`（作成済み） | workout_images | 段階 1（記録の画像。[テスト計画書 8.2](./test-plan.md#82-段階-1-の-pr-の順番) の 8-1） |
 | `V7__create_notifications.sql`（作成済み） | notifications。コメント・目標の表がまだないので、`comment_id`・`goal_id`・`goal_achievement_id` の列（と、それを使う種類ごとの CHECK）は、それぞれの表を作るマイグレーションで `ALTER TABLE` して足す | 段階 1（通知。[テスト計画書 8.2](./test-plan.md#82-段階-1-の-pr-の順番) の 10-1。最初の予定の V12 から、実装の順番に合わせて前に出した） |
 | `V8__create_follows.sql`（作成済み） | follows（承認の状態を含む） | 段階 1（フォロー。[テスト計画書 8.2](./test-plan.md#82-段階-1-の-pr-の順番) の 11-1） |
-| `V9__create_likes.sql`（予定） | likes | ナイストレーニング |
-| `V10__create_comments.sql`（予定） | comments（返信を含む）。notifications に `comment_id` の列を足す | コメント |
+| `V9__create_likes.sql`（作成済み） | likes | ナイストレーニング |
+| `V10__create_comments.sql`（作成済み） | comments（返信を含む）。notifications に `comment_id` の列を足す | コメント |
 | （予定） | running_mets と初期データ | 消費カロリー（段階 5）。使う機能を作るときに作る |
 
 - 種目と `running_mets` の METs は、消費カロリー（段階 5）を作るときに原典の値と照らし合わせる。違っていたら、新しい番号のマイグレーションで `UPDATE` する（V2 は書き換えない）
-| （予定。番号は作るときに決める） | body_records | 記録と集計（消費カロリー） |
+| `V11__create_body_records.sql`（作成済み） | body_records | 段階 2（体重の記録。[テスト計画書 8.3](./test-plan.md#83-段階-2-の-pr-の順番) の 5-1。最初の予定の「消費カロリーのとき」から、体重の画面に合わせて前に出した） |
 | （予定） | goals・goal_achievements・goal_cheers。notifications に `goal_id`・`goal_achievement_id` の列を足す | 目標 |
 | （予定） | hashtags・workout_hashtags、ひとことの検索の索引 | 投稿の検索 |
 | （予定） | workout_templates・template_exercises・template_sets | テンプレート |

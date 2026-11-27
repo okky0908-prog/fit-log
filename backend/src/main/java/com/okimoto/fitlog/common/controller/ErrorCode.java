@@ -47,6 +47,8 @@ public enum ErrorCode {
   EXERCISE_NOT_FOUND(HttpStatus.NOT_FOUND, "種目が見つかりません"),
   /** ユーザーが存在しない（ユーザー名は大文字・小文字を区別しない） */
   USER_NOT_FOUND(HttpStatus.NOT_FOUND, "ユーザーが見つかりません"),
+  /** その日の体重の記録がない（体重は本人のデータだけを扱うので、他人の記録とは取り違えない） */
+  BODY_RECORD_NOT_FOUND(HttpStatus.NOT_FOUND, "体重の記録が見つかりません"),
 
   // ===== 409 / 413 / 415 =====
   /** ユーザー名・メールアドレスが登録済み。どの項目かは errors に入る */

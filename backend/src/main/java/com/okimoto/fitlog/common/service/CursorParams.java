@@ -4,6 +4,7 @@ import com.okimoto.fitlog.common.calc.Cursor;
 import com.okimoto.fitlog.common.controller.ApiError.FieldError;
 import com.okimoto.fitlog.common.controller.ApiException;
 import com.okimoto.fitlog.common.controller.ErrorCode;
+import java.time.LocalDate;
 import java.util.List;
 
 /** 一覧の API で受け取ったカーソルを読む。形が違えば 400（VALIDATION_FAILED、field は cursor。docs/api.md「ページング」） */
@@ -21,6 +22,11 @@ public final class CursorParams {
   /** 実施日つきのカーソル。最初のページ（cursor なし）は null */
   public static Cursor.DatedPosition datedPosition(String cursor) {
     return cursor == null ? null : Cursor.decodeDated(cursor).orElseThrow(CursorParams::invalid);
+  }
+
+  /** 日付だけのカーソル。最初のページ（cursor なし）は null */
+  public static LocalDate date(String cursor) {
+    return cursor == null ? null : Cursor.decodeDate(cursor).orElseThrow(CursorParams::invalid);
   }
 
   private static ApiException invalid() {
