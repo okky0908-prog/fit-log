@@ -20,6 +20,8 @@ import type {
   FollowStatus,
   Profile,
   UserListItem,
+  WeeklyStats,
+  MonthlyStats,
 } from './types'
 import type { WorkoutInput } from '../validation/workout'
 
@@ -438,4 +440,14 @@ export function updateProfile(
     form.append('icon', icon, 'icon.jpg')
   }
   return apiFetch('/api/users/me', { method: 'PUT', form, auth: true })
+}
+
+/** A-90 週間の集計。date は週の中の日（YYYY-MM-DD） */
+export function fetchWeeklyStats(date: string): Promise<WeeklyStats> {
+  return apiFetch(`/api/stats/weekly?${new URLSearchParams({ date })}`, { auth: true })
+}
+
+/** A-91 月間の集計。month は YYYY-MM */
+export function fetchMonthlyStats(month: string): Promise<MonthlyStats> {
+  return apiFetch(`/api/stats/monthly?${new URLSearchParams({ month })}`, { auth: true })
 }

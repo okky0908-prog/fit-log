@@ -288,3 +288,47 @@ export interface UnreadCount {
   unreadCount: number
   followRequestCount: number
 }
+
+/** 集計の期間の値（A-90・A-91。kg・km・秒）。消費カロリーは段階 5 で作るので、今は null・0 */
+export interface StatsSummary {
+  trainingDays: number
+  totalVolumeKg: number
+  totalDurationSec: number
+  totalDistanceKm: number
+  caloriesKcal: number | null
+  caloriesExcludedWorkoutCount: number
+}
+
+/** 部位別のセット数（多い順） */
+export interface BodyPartCount {
+  bodyPart: string
+  setCount: number
+}
+
+/** A-90 週間の集計 */
+export interface WeeklyStats {
+  from: string
+  to: string
+  summary: StatsSummary
+  previous: StatsSummary
+  /** 月曜から7日分（記録のない日も 0） */
+  daily: { date: string; volumeKg: number; durationSec: number }[]
+  bodyParts: BodyPartCount[]
+}
+
+/** A-91 月間の集計 */
+export interface MonthlyStats {
+  from: string
+  to: string
+  summary: StatsSummary
+  previous: StatsSummary
+  /** その月に含まれる週（月曜の日付）。月をまたぐ週は、その月の日だけを数える */
+  weekly: {
+    weekStart: string
+    volumeKg: number
+    durationSec: number
+    distanceKm: number
+    trainingDays: number
+  }[]
+  bodyParts: BodyPartCount[]
+}

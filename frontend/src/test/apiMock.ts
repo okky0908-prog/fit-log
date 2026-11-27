@@ -54,5 +54,7 @@ export async function mockApiClient(importOriginal: () => Promise<typeof api>) {
     fetchTimeline: vi.fn<typeof actual.fetchTimeline>(async () => EMPTY_PAGE),
     fetchNewPostCount: vi.fn<typeof actual.fetchNewPostCount>(async () => ({ count: 0 })),
     fetchUserWorkouts: vi.fn<typeof actual.fetchUserWorkouts>(async () => EMPTY_PAGE),
+    fetchWeeklyStats: vi.fn<typeof actual.fetchWeeklyStats>(),
+    fetchMonthlyStats: vi.fn<typeof actual.fetchMonthlyStats>(),
   }
 }

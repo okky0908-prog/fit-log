@@ -16,7 +16,7 @@ const UNREAD_REFETCH_MS = 60_000
  * ログイン後の画面の共通の枠（docs/screens.md「ナビゲーション」）。
  * パソコン（640px を超える幅）は上のヘッダーに、スマートフォンは下のタブバーに行き先を並べる（同じリンクを CSS で並べ替える）。
  *
- * 検索（S-11）・記録（S-20）・目標（S-23）と、アイコンのメニューのプロフィール・体重・テンプレート・フォローのリクエスト・設定は、
+ * 検索（S-11）・目標（S-23）と、アイコンのメニューのプロフィール・体重・テンプレート・フォローのリクエスト・設定は、
  * それぞれの画面を作るときに足す
  */
 export function AppLayout() {
@@ -33,6 +33,13 @@ export function AppLayout() {
               ＋
             </span>
             記録する
+          </NavLink>
+          {/* 週間（/records）・月間（/records/month）のどちらでも選ばれた見た目にする（NavLink は下の階層でも選ばれる） */}
+          <NavLink to="/records" className={styles.navLink}>
+            <span aria-hidden="true" className={styles.navIcon}>
+              📊
+            </span>
+            記録
           </NavLink>
         </nav>
         <div className={styles.tools}>
