@@ -1,0 +1,54 @@
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.weekday {
+  padding: 4px 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 8px;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+a.day:hover {
+  background: var(--color-background);
+}
+
+/* 未来の日は押せない。押せる日と見分けられるよう灰色にする（透明にすると文字のコントラストが足りなくなるので、色だけ変える） */
+.future {
+  color: var(--color-text-muted);
+}
+
+.today {
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+.selected,
+a.selected:hover {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.dot {
+  color: var(--color-primary);
+  font-size: 0.5rem;
+  line-height: 1;
+}
+
+.selected .dot {
+  color: #ffffff;
+}

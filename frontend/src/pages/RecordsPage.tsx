@@ -2,17 +2,22 @@ import { useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { PeriodSwitch } from '../components/PeriodSwitch'
+import { RecordsCalendar } from '../components/RecordsCalendar'
 import { StatsChart } from '../components/StatsChart'
+import { WorkoutCard } from '../components/WorkoutCard'
 import {
   errorMessage,
+  fetchCalendar,
+  fetchDayWorkouts,
   fetchMonthlyStats,
   fetchUserWorkouts,
   fetchWeeklyStats,
 } from '../lib/api/client'
 import type { BodyPartCount, StatsSummary } from '../lib/api/types'
 import { useAuth } from '../lib/auth/authContext'
-import { tokyoDate } from '../lib/format/date'
+import { formatPerformedOn, tokyoDate } from '../lib/format/date'
 import type { Units } from '../lib/format/workout'
+import { dayFromParam } from '../lib/stats/calendar'
 import {
   addDays,
   addMonths,
@@ -59,7 +64,9 @@ interface PeriodStats {
  * S-20 記録（ダッシュボード）の週間（/records）・月間（/records/month）（docs/screens.md）。
  * 期間は URL（`?week=`・`?month=`）に、グラフの値（総挙上量・運動時間）は `?metric=duration` に入れる。
  *
- * 消費カロリー（段階 5）、目標（段階 3）、カレンダー（2-4）、ランニング・種目へのリンク（3-2・4-2）は、それぞれの PR で足す
+ * カレンダーの月と記録を出す日は `?cal=`・`?day=` に入れる（週間・月間の期間とは別に動かせる）。
+ *
+ * 消費カロリー（段階 5）、目標（段階 3）、ランニング・種目へのリンク（3-2・4-2）は、それぞれの PR で足す
  */
 export function RecordsPage({ kind }: { kind: RecordsKind }) {
   const { user } = useAuth()
@@ -71,7 +78,7 @@ export function RecordsPage({ kind }: { kind: RecordsKind }) {
   const metric: Metric = searchParams.get('metric') === 'duration' ? 'duration' : 'volume'
   // 「今日」（日本時間）。描き直すたびに変わらないよう、開いたときの日付を持つ
   const [today] = useState(() => tokyoDate(new Date()))
-  const period = usePeriod(kind, searchParams, today, metric)
+  const period = usePeriod(kind, searchParams, today)
 
   // 記録が1件もないか（自分の記録一覧の1ページ目で確かめる）。取れなければ、集計を出す
   const hasAny = useQuery({
@@ -145,13 +152,104 @@ export function RecordsPage({ kind }: { kind: RecordsKind }) {
           />
         )}
       </div>
+      {hasAny.data !== false && <CalendarSection kind={kind} params={searchParams} today={today} />}
     </>
   )
 }
 
-/** URL から表示する期間を決め、期間の切り替えのリンクを作る（グラフの値の選び方は残す） */
-function usePeriod(kind: RecordsKind, params: URLSearchParams, today: string, metric: Metric) {
-  const keep: Record<string, string> = metric === 'duration' ? { metric: 'duration' } : {}
+/** カレンダーと、選んだ日の記録 */
+function CalendarSection({
+  kind,
+  params,
+  today,
+}: {
+  kind: RecordsKind
+  params: URLSearchParams
+  today: string
+}) {
+  const calendarId = useId()
+  const month = monthFromParam(params.get('cal'), today)
+  const day = dayFromParam(params.get('day'), month, today)
+  const calendar = useQuery({
+    queryKey: ['stats', 'calendar', month],
+    queryFn: () => fetchCalendar(month),
+  })
+  // 週間・月間の期間とグラフの値はそのままにして、カレンダーの月と日だけを変える（今月なら月は入れない）
+  const hrefFor = (nextMonth: string, nextDay: string | null) => {
+    const next = new URLSearchParams(params)
+    next.delete('cal')
+    next.delete('day')
+    if (nextMonth !== today.slice(0, 7)) next.set('cal', nextMonth)
+    if (nextDay !== null) next.set('day', nextDay)
+    const path = kind === 'week' ? '/records' : '/records/month'
+    return next.size === 0 ? path : `${path}?${next}`
+  }
+
+  return (
+    <>
+      <section aria-labelledby={calendarId} className={styles.card}>
+        <h2 id={calendarId} className={styles.cardTitle}>
+          カレンダー
+        </h2>
+        <RecordsCalendar
+          month={month}
+          today={today}
+          dates={new Set(calendar.data?.dates ?? [])}
+          selected={day}
+          hrefFor={hrefFor}
+        />
+      </section>
+      {day !== null && <DayWorkouts date={day} />}
+    </>
+  )
+}
+
+/** その日の自分の記録（投稿カード） */
+function DayWorkouts({ date }: { date: string }) {
+  const headingId = useId()
+  // 「◯分前に投稿」の基準。描き直すたびに変わらないよう、開いたときの時刻を持つ
+  const [now] = useState(() => new Date())
+  const query = useQuery({
+    // ナイストレーニング・コメントのあとに書き換える対象（lib/workout/workoutCache.ts）
+    queryKey: ['stats', 'calendar-day', date],
+    queryFn: () => fetchDayWorkouts(date),
+  })
+  return (
+    <section aria-labelledby={headingId}>
+      <h2 id={headingId} className={styles.cardTitle}>
+        {formatPerformedOn(date, now)}の記録
+      </h2>
+      {query.error ? (
+        <div className={styles.message}>
+          <p>{errorMessage(query.error)}</p>
+          <button type="button" className="button-secondary" onClick={() => void query.refetch()}>
+            もう一度読み込む
+          </button>
+        </div>
+      ) : !query.data ? (
+        <p className={styles.message}>読み込み中…</p>
+      ) : query.data.length === 0 ? (
+        <p className={styles.empty}>この日の記録はありません</p>
+      ) : (
+        <ul className={styles.workouts}>
+          {query.data.map((workout) => (
+            <li key={workout.id}>
+              <WorkoutCard workout={workout} now={now} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+/** URL から表示する期間を決め、期間の切り替えのリンクを作る（グラフの値の選び方と、カレンダーの月・日は残す） */
+function usePeriod(kind: RecordsKind, params: URLSearchParams, today: string) {
+  const keep: Record<string, string> = {}
+  for (const name of ['metric', 'cal', 'day']) {
+    const value = params.get(name)
+    if (value !== null) keep[name] = value
+  }
   const href = (path: string, query: Record<string, string>) => {
     const search = new URLSearchParams({ ...query, ...keep }).toString()
     return search === '' ? path : `${path}?${search}`

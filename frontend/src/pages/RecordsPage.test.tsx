@@ -93,6 +93,24 @@ const NOVEMBER: MonthlyStats = {
   bodyParts: [{ bodyPart: 'chest', setCount: 1 }],
 }
 
+/** 2026-11-04 の自分の記録 */
+const DAY_CARD: WorkoutCard = {
+  id: 7,
+  author: { username: ME.username, displayName: ME.displayName, iconUrl: null, isPrivate: false },
+  performedOn: '2026-11-04',
+  createdAt: '2026-11-04T19:00:00+09:00',
+  editedAt: null,
+  body: '胸の日',
+  visibility: 'private',
+  exerciseSummaries: [],
+  otherExerciseCount: 0,
+  images: [],
+  likeCount: 0,
+  likedByMe: false,
+  commentCount: 0,
+  mine: true,
+}
+
 /** 記録が1件以上あることを表す、自分の記録一覧の1件 */
 const SOME_WORKOUT = { id: 1 } as WorkoutCard
 
@@ -105,6 +123,16 @@ beforeEach(() => {
     date === '2026-11-09' ? THIS_WEEK : weekly(date),
   )
   vi.mocked(api.fetchMonthlyStats).mockResolvedValue(NOVEMBER)
+  vi.mocked(api.fetchCalendar).mockReset()
+  vi.mocked(api.fetchCalendar).mockImplementation(async (month) => ({
+    month,
+    dates: month === '2026-11' ? ['2026-11-04', '2026-11-10'] : ['2026-10-31'],
+  }))
+  vi.mocked(api.fetchDayWorkouts).mockReset()
+  vi.mocked(api.fetchDayWorkouts).mockImplementation(async (date) =>
+    date === '2026-11-04' ? [DAY_CARD] : [],
+  )
+  vi.mocked(api.likeWorkout).mockReset()
   vi.mocked(api.fetchUserWorkouts).mockResolvedValue({
     items: [SOME_WORKOUT],
     nextCursor: null,
@@ -228,7 +256,9 @@ describe('月間', () => {
     const user = userEvent.setup()
     renderApp('/records/month')
 
-    expect(await screen.findByText('2026年11月')).toBeInTheDocument()
+    expect(
+      await within(await screen.findByRole('tabpanel')).findByText('2026年11月'),
+    ).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: '月間' })).toHaveAttribute('aria-selected', 'true')
     expect(api.fetchMonthlyStats).toHaveBeenCalledWith('2026-11')
     expect(await screen.findByText('600kg')).toBeInTheDocument()
@@ -249,15 +279,114 @@ describe('月間', () => {
   test('‹ で前の月へ（URL に入れる）。今月より先へは移れない', async () => {
     const user = userEvent.setup()
     const { router } = renderApp('/records/month')
-    await screen.findByText('2026年11月')
+    await within(await screen.findByRole('tabpanel')).findByText('2026年11月')
     expect(screen.queryByRole('link', { name: '次の月' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('link', { name: '前の月' }))
 
-    expect(await screen.findByText('2026年10月')).toBeInTheDocument()
+    expect(await within(screen.getByRole('tabpanel')).findByText('2026年10月')).toBeInTheDocument()
     expect(router.state.location.search).toBe('?month=2026-10')
     expect(api.fetchMonthlyStats).toHaveBeenCalledWith('2026-10')
     expect(screen.getByRole('link', { name: '今月' })).toBeInTheDocument()
+  })
+})
+
+describe('カレンダー', () => {
+  test('今月のカレンダーで、記録した日に印を付ける', async () => {
+    renderApp('/records')
+
+    const calendar = await screen.findByRole('region', { name: 'カレンダー' })
+    expect(within(calendar).getByText('2026年11月')).toBeInTheDocument()
+    expect(api.fetchCalendar).toHaveBeenCalledWith('2026-11')
+    expect(
+      await within(calendar).findByRole('link', { name: '11月4日（水） 記録あり' }),
+    ).toHaveTextContent('4●')
+    expect(within(calendar).getByRole('link', { name: '11月5日（木）' })).toHaveTextContent(/^5$/)
+    // 今日（11-12）は印を付け、未来の日は押せない
+    expect(within(calendar).getByRole('link', { name: '11月12日（木）' })).toHaveAttribute(
+      'aria-current',
+      'date',
+    )
+    expect(within(calendar).queryByRole('link', { name: /11月13日/ })).not.toBeInTheDocument()
+    expect(within(calendar).getByText('13')).toBeInTheDocument()
+    expect(
+      within(calendar).queryByRole('link', { name: 'カレンダーの次の月' }),
+    ).not.toBeInTheDocument()
+  })
+
+  test('日付を押すと、下にその日の自分の記録を投稿カードで出す（URL に入れる）', async () => {
+    const user = userEvent.setup()
+    const { router } = renderApp('/records')
+
+    await user.click(await screen.findByRole('link', { name: '11月4日（水） 記録あり' }))
+
+    expect(router.state.location.search).toBe('?day=2026-11-04')
+    const day = await screen.findByRole('region', { name: '11/4（水）の記録' })
+    expect(await within(day).findByRole('article', { name: '山田太郎の記録' })).toHaveTextContent(
+      '胸の日',
+    )
+    expect(api.fetchDayWorkouts).toHaveBeenCalledWith('2026-11-04')
+    expect(screen.getByRole('link', { name: '11月4日（水） 記録あり' })).toHaveAttribute(
+      'aria-current',
+      'true',
+    )
+
+    await user.click(screen.getByRole('link', { name: '11月5日（木）' }))
+    expect(
+      await within(await screen.findByRole('region', { name: '11/5（木）の記録' })).findByText(
+        'この日の記録はありません',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  test('カレンダーの月は、週間・月間の期間とは別に動かせ、日付の選択は外れる', async () => {
+    const user = userEvent.setup()
+    const { router } = renderApp('/records?day=2026-11-04')
+    await screen.findByRole('region', { name: '11/4（水）の記録' })
+
+    await user.click(screen.getByRole('link', { name: 'カレンダーの前の月' }))
+
+    const calendar = await screen.findByRole('region', { name: 'カレンダー' })
+    expect(await within(calendar).findByText('2026年10月')).toBeInTheDocument()
+    expect(router.state.location.search).toBe('?cal=2026-10')
+    expect(api.fetchCalendar).toHaveBeenCalledWith('2026-10')
+    expect(
+      await within(calendar).findByRole('link', { name: '10月31日（土） 記録あり' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /の記録$/ })).not.toBeInTheDocument()
+    // 週間の期間はそのまま
+    expect(screen.getByText('2026/11/09（月）〜 11/15（日）')).toBeInTheDocument()
+
+    await user.click(within(calendar).getByRole('link', { name: 'カレンダーの次の月' }))
+    expect(await within(calendar).findByText('2026年11月')).toBeInTheDocument()
+    expect(router.state.location.search).toBe('')
+  })
+
+  test('週間・月間の期間を動かしても、カレンダーの月と日付はそのまま', async () => {
+    const user = userEvent.setup()
+    const { router } = renderApp('/records?cal=2026-10&day=2026-10-31')
+    await screen.findByText('2026年10月')
+
+    await user.click(screen.getByRole('link', { name: '前の週' }))
+
+    expect(router.state.location.search).toBe('?week=2026-11-02&cal=2026-10&day=2026-10-31')
+    expect(screen.getByText('2026年10月')).toBeInTheDocument()
+  })
+
+  test('その日の記録の投稿カードで、ナイストレーニングを押すと数が変わる', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.likeWorkout).mockResolvedValue({ likeCount: 1, likedByMe: true })
+    renderApp('/records?day=2026-11-04')
+    const card = await screen.findByRole('article', { name: '山田太郎の記録' })
+
+    await user.click(within(card).getByRole('button', { name: /ナイストレーニング/ }))
+
+    expect(within(card).getByRole('button', { name: /ナイストレーニング/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(within(card).getByTitle('ナイストレーニング')).toHaveTextContent('1')
+    expect(api.likeWorkout).toHaveBeenCalledWith(7)
   })
 })
 

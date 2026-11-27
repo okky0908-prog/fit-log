@@ -48,4 +48,17 @@ test('今週の記録が集計とグラフに出て、表でも読め、月間�
   ).toBeVisible()
   await expect(page.getByRole('region', { name: '集計' }).getByText('1,800kg')).toBeVisible()
   await expectNoA11yViolations(page)
+
+  // カレンダー：今日に ● が付き、押すと下にその日の記録が投稿カードで出る
+  const calendar = page.getByRole('region', { name: 'カレンダー' })
+  await calendar.getByRole('link', { name: /記録あり$/ }).click()
+  await expect(page).toHaveURL(/[?&]day=\d{4}-\d{2}-\d{2}$/)
+  const day = page.getByRole('region', { name: /の記録$/ })
+  await expect(
+    day
+      .getByRole('article', { name: `${user.displayName}の記録` })
+      .getByRole('listitem')
+      .filter({ hasText: 'ベンチプレス' }),
+  ).toContainText('60kg × 10回 × 3セット')
+  await expectNoA11yViolations(page)
 })
