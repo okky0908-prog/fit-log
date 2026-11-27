@@ -3,8 +3,10 @@ import {
   formatDistance,
   formatDuration,
   formatPace,
+  formatBodyWeight,
   formatPaceValue,
   formatWeight,
+  bodyWeightValue,
   paceSecondsPer,
 } from './units'
 
@@ -92,5 +94,25 @@ describe('集計のペース（1km あたりの秒から）', () => {
     expect(formatPaceValue(360, 'km')).toBe('6:00/km')
     expect(formatPaceValue(579, 'mi')).toBe('9:39/mi')
     expect(formatPaceValue(3700, 'km')).toBe('61:40/km')
+  })
+})
+
+describe('体重（記録の刻みに合わせる：kg は 0.1、lb は 0.2）', () => {
+  test('kg は小数第1位に四捨五入する', () => {
+    expect(bodyWeightValue(73, 'kg')).toBe('73.0')
+    expect(bodyWeightValue(72.96, 'kg')).toBe('73.0')
+    expect(bodyWeightValue(73.05, 'kg')).toBe('73.1')
+    expect(formatBodyWeight(73, 'kg')).toBe('73.0kg')
+  })
+
+  test('lb は換算して 0.2 単位に丸める（入力した値に戻る）', () => {
+    // 保存した kg から戻すと、入力した 150.0・44.0・661.0lb になる
+    expect(bodyWeightValue(68.039, 'lb')).toBe('150.0')
+    expect(bodyWeightValue(19.958, 'lb')).toBe('44.0')
+    expect(bodyWeightValue(299.825, 'lb')).toBe('661.0')
+    expect(bodyWeightValue(68.13, 'lb')).toBe('150.2')
+    // 68.084kg ＝ 150.0995…lb。0.2 単位なので 150.1 にはならない
+    expect(bodyWeightValue(68.084, 'lb')).toBe('150.0')
+    expect(formatBodyWeight(68.039, 'lb')).toBe('150.0lb')
   })
 })

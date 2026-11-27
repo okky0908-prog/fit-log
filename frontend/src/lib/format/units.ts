@@ -71,6 +71,20 @@ export function formatPaceValue(secondsPerUnit: number, unit: DistanceUnit): str
   return `${Math.floor(secondsPerUnit / 60)}:${twoDigits(secondsPerUnit % 60)}/${unit}`
 }
 
+/** 体重の丸めの単位（体重の記録の刻み。kg は 0.1、lb は 0.2） */
+const BODY_WEIGHT_STEP: Record<WeightUnit, number> = { kg: 0.1, lb: 0.2 }
+
+/** 体重を単位に換算し、記録の刻みに丸めた値（「73.0」「150.2」）。編集の入力欄の初期値にも使う（保存した kg から、入力した値に戻る） */
+export function bodyWeightValue(kg: number, unit: WeightUnit): string {
+  const value = unit === 'lb' ? kg / KG_PER_LB : kg
+  return roundHalfUp(value, BODY_WEIGHT_STEP[unit]).toFixed(1)
+}
+
+/** 「73.0kg」「150.2lb」の形 */
+export function formatBodyWeight(kg: number, unit: WeightUnit): string {
+  return `${bodyWeightValue(kg, unit)}${unit}`
+}
+
 function twoDigits(value: number): string {
   return String(value).padStart(2, '0')
 }

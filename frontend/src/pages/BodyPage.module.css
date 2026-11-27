@@ -1,0 +1,125 @@
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.private {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.card {
+  margin-bottom: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.cardTitle {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+/* 入力欄：パソコンは3つ横に、スマートフォンは縦に */
+.fields {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0 12px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tabs {
+  display: flex;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+  flex: 1;
+  padding: 8px 0;
+  border-bottom: 3px solid transparent;
+  color: var(--color-text-muted);
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
+
+.tab[aria-selected='true'] {
+  border-bottom-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.message {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 16px 0;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.message p {
+  margin: 0;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  column-gap: 12px;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 0;
+}
+
+.row + .row {
+  border-top: 1px solid var(--color-border);
+}
+
+.date {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.weight {
+  font-weight: 700;
+}
+
+.fat {
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.delete {
+  padding: 4px 12px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .fields {
+    grid-template-columns: 1fr;
+  }
+}

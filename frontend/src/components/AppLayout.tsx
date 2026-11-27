@@ -16,7 +16,7 @@ const UNREAD_REFETCH_MS = 60_000
  * ログイン後の画面の共通の枠（docs/screens.md「ナビゲーション」）。
  * パソコン（640px を超える幅）は上のヘッダーに、スマートフォンは下のタブバーに行き先を並べる（同じリンクを CSS で並べ替える）。
  *
- * 検索（S-11）・目標（S-23）と、アイコンのメニューのプロフィール・体重・テンプレート・フォローのリクエスト・設定は、
+ * 検索（S-11）・目標（S-23）と、アイコンのメニューのテンプレート・フォローのリクエスト・設定は、
  * それぞれの画面を作るときに足す
  */
 export function AppLayout() {
@@ -105,7 +105,7 @@ function NotificationBell() {
   )
 }
 
-/** 自分のアイコンのメニュー。今はログアウトだけ */
+/** 自分のアイコンのメニュー。プロフィール・体重の記録・ログアウト（テンプレート・フォローのリクエスト・設定は、それぞれの画面を作るときに足す） */
 function AccountMenu() {
   const { user, logout } = useAuth()
   const [open, setOpen] = useState(false)
@@ -146,6 +146,11 @@ function AccountMenu() {
               </Link>
             </li>
           )}
+          <li role="none">
+            <Link to="/body" role="menuitem" onClick={() => setOpen(false)}>
+              体重の記録
+            </Link>
+          </li>
           <li role="none">
             <button type="button" role="menuitem" onClick={() => void logout()}>
               ログアウト

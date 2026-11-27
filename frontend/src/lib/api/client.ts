@@ -27,6 +27,10 @@ import type {
   UsedExercise,
   TrendRange,
   ExerciseTrend,
+  BodyRecord,
+  BodyRecordInput,
+  BodyRange,
+  BodyTrend,
 } from './types'
 import type { WorkoutInput } from '../validation/workout'
 
@@ -487,4 +491,25 @@ export function fetchExerciseTrend(exerciseId: number, range: TrendRange): Promi
   return apiFetch(`/api/stats/exercises/${exerciseId}?${new URLSearchParams({ range })}`, {
     auth: true,
   })
+}
+
+/** A-100 その日の体重を記録・上書きする（date は YYYY-MM-DD） */
+export function putBodyRecord(date: string, input: BodyRecordInput): Promise<BodyRecord> {
+  return apiFetch(`/api/body-records/${date}`, { method: 'PUT', body: input, auth: true })
+}
+
+/** A-101 体重の一覧（日付の新しい順に30件ずつ） */
+export function fetchBodyRecords(cursor?: string): Promise<Page<BodyRecord>> {
+  const query = cursor === undefined ? '' : `?${new URLSearchParams({ cursor })}`
+  return apiFetch(`/api/body-records${query}`, { auth: true })
+}
+
+/** A-102 その日の体重の記録を消す。なければ 404（BODY_RECORD_NOT_FOUND） */
+export function deleteBodyRecord(date: string): Promise<void> {
+  return apiFetch(`/api/body-records/${date}`, { method: 'DELETE', auth: true })
+}
+
+/** A-103 体重・体脂肪率の推移 */
+export function fetchBodyTrend(range: BodyRange): Promise<BodyTrend> {
+  return apiFetch(`/api/body-records/trend?${new URLSearchParams({ range })}`, { auth: true })
 }

@@ -404,3 +404,26 @@ export interface ExerciseTrend {
   /** 実施日の古い順 */
   points: TrendPoint[]
 }
+
+/** A-100・A-101 体重の記録（本人だけが見られる） */
+export interface BodyRecord {
+  recordedOn: string
+  weightKg: number
+  /** 体脂肪率（%）。なければ null */
+  bodyFatPct: number | null
+}
+
+/** A-100 の入力 */
+export interface BodyRecordInput {
+  weight: number
+  weightUnit: 'kg' | 'lb'
+  bodyFatPct: number | null
+}
+
+/** A-103 の期間 */
+export type BodyRange = '3m' | '1y'
+
+/** A-103 体重・体脂肪率の推移（日付の古い順） */
+export interface BodyTrend {
+  points: { date: string; weightKg: number; bodyFatPct: number | null }[]
+}
