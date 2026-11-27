@@ -716,6 +716,7 @@ WHERE w.user_id = :me
 
 - 最速ペースは、`s.distance_km >= 1` のセットを `ORDER BY s.duration_sec / s.distance_km, s.distance_km DESC, w.performed_on DESC LIMIT 1` で1件取る（F-83 の同じ値のときの決まりの順）。最長距離は `ORDER BY s.distance_km DESC, s.duration_sec, w.performed_on DESC LIMIT 1`
 - 年間の月ごとの走行距離は `date_trunc('month', w.performed_on)` でまとめる
+- 実装（`RunningRepository`）では、最速ペース・最長距離の並びの最後に `w.created_at DESC, s.id DESC` を足し、実施日も同じときにも1件に決まるようにした（同じ日に先に投稿した記録より、あとに投稿した記録を選ぶ）。記録のない月を 0 で埋めるのは Java（`RunningRules.monthly`）で行う
 
 ### 種目ごとの推移
 

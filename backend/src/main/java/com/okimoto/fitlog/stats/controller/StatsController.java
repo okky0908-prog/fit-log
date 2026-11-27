@@ -1,11 +1,16 @@
 package com.okimoto.fitlog.stats.controller;
 
 import com.okimoto.fitlog.auth.config.AuthenticatedUser;
+import com.okimoto.fitlog.common.controller.ApiException;
+import com.okimoto.fitlog.common.controller.ErrorCode;
 import com.okimoto.fitlog.image.service.ImageUrls;
+import com.okimoto.fitlog.stats.calc.RunningRules;
+import com.okimoto.fitlog.stats.calc.RunningRules.Unit;
 import com.okimoto.fitlog.stats.calc.StatsRules;
 import com.okimoto.fitlog.stats.calc.StatsRules.Daily;
 import com.okimoto.fitlog.stats.calc.StatsRules.Totals;
 import com.okimoto.fitlog.stats.repository.BodyPartCount;
+import com.okimoto.fitlog.stats.repository.RunRecord;
 import com.okimoto.fitlog.stats.service.StatsService;
 import com.okimoto.fitlog.workout.controller.WorkoutCardResponse;
 import java.math.BigDecimal;
@@ -19,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 週間・月間の集計とカレンダー（docs/api.md A-90〜A-93）。本人のデータだけを返す */
+/** 週間・月間の集計・カレンダー・ランニングの集計（docs/api.md A-90〜A-94）。本人のデータだけを返す */
 @RestController
 @RequestMapping("/api/stats")
 public class StatsController {
@@ -112,6 +117,75 @@ public class StatsController {
       Summary previous,
       List<StatsRules.Weekly> weekly,
       List<BodyPartCount> bodyParts) {}
+
+  /**
+   * 1回の走行（最速ペース・最長距離）。
+   *
+   * @param workoutId 記録（押すと詳細を開く）
+   * @param performedOn 実施日
+   * @param distanceKm 距離（km）
+   * @param durationSec 時間（秒）
+   * @param paceSecPerKm ペース（秒/km）
+   */
+  public record Run(
+      long workoutId,
+      LocalDate performedOn,
+      BigDecimal distanceKm,
+      int durationSec,
+      Integer paceSecPerKm) {
+
+    static Run of(RunRecord run) {
+      return run == null
+          ? null
+          : new Run(
+              run.workoutId(),
+              run.performedOn(),
+              run.distanceKm(),
+              run.durationSec(),
+              RunningRules.pace(run.durationSec(), run.distanceKm()));
+    }
+  }
+
+  /**
+   * 月ごとの走行距離。
+   *
+   * @param month 月（YYYY-MM）
+   * @param distanceKm 走行距離（km）
+   */
+  public record MonthlyDistance(String month, BigDecimal distanceKm) {}
+
+  /** A-94 の応答 */
+  public record RunningResponse(
+      LocalDate from,
+      LocalDate to,
+      RunningRules.Summary summary,
+      RunningRules.Summary previous,
+      Run bestPace,
+      Run longestRun,
+      List<MonthlyDistance> monthly) {}
+
+  /** A-94 ランニングの集計。period は week・month・year（必須。それ以外は 400）。date は期間の中のどの日でもよい。なければ今日を含む期間 */
+  @GetMapping("/running")
+  public RunningResponse running(
+      @AuthenticationPrincipal AuthenticatedUser user,
+      @RequestParam String period,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate date) {
+    Unit unit =
+        RunningRules.unitOf(period)
+            .orElseThrow(() -> new ApiException(ErrorCode.MALFORMED_REQUEST));
+    StatsService.Running running = statsService.running(user.id(), unit, date);
+    return new RunningResponse(
+        running.period().from(),
+        running.period().to(),
+        running.summary(),
+        running.previous(),
+        Run.of(running.bestPace()),
+        Run.of(running.longestRun()),
+        running.monthly().stream()
+            .map(month -> new MonthlyDistance(month.month().toString(), month.distanceKm()))
+            .toList());
+  }
 
   /** A-90 週間の集計。date は週の中のどの日でもよい（YYYY-MM-DD）。なければ今週 */
   @GetMapping("/weekly")
