@@ -1,5 +1,5 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import type { ChartPoint } from '../lib/stats/stats'
+import { axisLabel, type ChartPoint } from '../lib/stats/stats'
 
 interface Props {
   title: string
@@ -17,11 +17,11 @@ export default function StatsBarChart({ title, valueName, points, format }: Prop
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={points} title={title} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
         <CartesianGrid vertical={false} stroke="var(--color-border)" />
-        {/* 月間の週（最大6本）もスマートフォンの幅で全部出るよう、目盛りを間引かず、文字を小さくし、「〜」を省く（表とツールチップには出す） */}
+        {/* 月間の週（最大6本）・年間の月（12本）もスマートフォンの幅で全部出るよう、目盛りを間引かず、文字を小さくし、「〜」「月」を省く（表とツールチップには出す） */}
         <XAxis
           dataKey="label"
           interval={0}
-          tickFormatter={(label: string) => label.replace('〜', '')}
+          tickFormatter={axisLabel}
           tick={{ fontSize: 12 }}
           tickLine={false}
           stroke="var(--color-text-muted)"

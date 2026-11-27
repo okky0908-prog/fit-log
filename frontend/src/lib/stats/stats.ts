@@ -111,6 +111,14 @@ export function formatMetric(value: number, metric: Metric, units: Units): strin
     : `${value.toLocaleString('ja-JP')}分`
 }
 
+/**
+ * グラフの横軸の目盛りの文字。スマートフォンの幅でも全部出るよう、週の「〜」と、月の「月」（「11月」→「11」）を省く。
+ * 曜日の「月」（月曜）は数字が付かないので省かない
+ */
+export function axisLabel(label: string): string {
+  return label.replace('〜', '').replace(/^(\d+)月$/, '$1')
+}
+
 /** グラフに出す値があるか（すべて 0 なら「この期間の記録はありません」） */
 export function hasChartData(points: ChartPoint[]): boolean {
   return points.some((point) => point.value > 0)

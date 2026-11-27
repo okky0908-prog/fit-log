@@ -23,6 +23,7 @@ import type {
   WeeklyStats,
   MonthlyStats,
   CalendarDates,
+  RunningStats,
 } from './types'
 import type { WorkoutInput } from '../validation/workout'
 
@@ -463,4 +464,12 @@ export function fetchDayWorkouts(date: string): Promise<WorkoutCard[]> {
   return apiFetch(`/api/stats/calendar/workouts?${new URLSearchParams({ date })}`, {
     auth: true,
   })
+}
+
+/** A-94 ランニングの集計。period は week・month・year、date は期間の中の日（YYYY-MM-DD） */
+export function fetchRunningStats(
+  period: 'week' | 'month' | 'year',
+  date: string,
+): Promise<RunningStats> {
+  return apiFetch(`/api/stats/running?${new URLSearchParams({ period, date })}`, { auth: true })
 }
