@@ -1,5 +1,6 @@
 package com.okimoto.fitlog.stats;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasSize;
@@ -10,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.okimoto.fitlog.support.MutableClock;
+import com.okimoto.fitlog.support.SqlCounter;
 import com.okimoto.fitlog.support.TestAccounts;
 import com.okimoto.fitlog.support.TestAccounts.Account;
 import com.okimoto.fitlog.support.TestcontainersConfiguration;
@@ -17,6 +19,8 @@ import com.okimoto.fitlog.support.WorkoutFixture;
 import com.okimoto.fitlog.workout.repository.WorkoutRepository;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.util.List;
 import org.jooq.DSLContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -55,6 +59,7 @@ class StatsIntegrationTest {
   @Autowired private ObjectMapper objectMapper;
   @Autowired private DSLContext dsl;
   @Autowired private WorkoutRepository workoutRepository;
+  @Autowired private SqlCounter sqlCounter;
 
   private TestAccounts accounts;
   private WorkoutFixture workouts;
@@ -233,6 +238,116 @@ class StatsIntegrationTest {
     }
   }
 
+  @Nested
+  class カレンダー_A92 {
+
+    @Test
+    void その月の記録がある日を返す_自分のみの記録も入り_他人の記録は入らない() throws Exception {
+      Account me = accounts.signup();
+      Account sato = accounts.signup();
+      save(me, "2026-11-30").save();
+      save(me, "2026-11-01").visibility("private").save();
+      save(me, "2026-11-04").save();
+      save(me, "2026-11-04").save();
+      save(me, "2026-10-31").save();
+      save(me, "2026-12-01").save();
+      save(sato, "2026-11-06").save();
+
+      calendar(me, "month=2026-11")
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.month").value("2026-11"))
+          .andExpect(jsonPath("$.dates").value(contains("2026-11-01", "2026-11-04", "2026-11-30")));
+    }
+
+    @Test
+    void 月がなければ今月_正しくなければ400_ログインしていなければ401() throws Exception {
+      // 日本時間 2026-12-01 00:00:00（UTC ではまだ 11-30）
+      CLOCK.set(Instant.parse("2026-11-30T15:00:00Z"));
+      Account me = accounts.signup();
+      calendar(me, "").andExpect(jsonPath("$.month").value("2026-12"));
+      calendar(me, "month=2026-13")
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
+      mockMvc.perform(get("/api/stats/calendar")).andExpect(status().isUnauthorized());
+    }
+  }
+
+  @Nested
+  class その日の記録_A93 {
+
+    @Test
+    void その日の自分の記録を投稿日時の順に_投稿カードの形で返す() throws Exception {
+      Account me = accounts.signup();
+      Account sato = accounts.signup();
+      save(me, "2026-11-09").weightReps("ベンチプレス", 60, 10, 1).save();
+      long later =
+          save(me, "2026-11-10")
+              .createdAt(OffsetDateTime.parse("2026-11-10T20:00:00+09:00"))
+              .weightReps("ベンチプレス", 70, 5, 1)
+              .save();
+      long first =
+          save(me, "2026-11-10")
+              .createdAt(OffsetDateTime.parse("2026-11-10T07:00:00+09:00"))
+              .visibility("private")
+              .reps("腕立て伏せ", 20, 1)
+              .save();
+      save(sato, "2026-11-10").save();
+
+      day(me, "date=2026-11-10")
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(2)))
+          .andExpect(jsonPath("$[*].id").value(contains((int) first, (int) later)))
+          .andExpect(jsonPath("$[0].visibility").value("private"))
+          .andExpect(jsonPath("$[0].mine").value(true))
+          .andExpect(jsonPath("$[1].exerciseSummaries[0].name").value("ベンチプレス"))
+          .andExpect(jsonPath("$[1].exerciseSummaries[0].personalBest").value(true));
+    }
+
+    @Test
+    void 日付がなければ今日_正しくなければ400_ログインしていなければ401() throws Exception {
+      // 日本時間 2026-11-11 00:00:00（UTC ではまだ 11-10）
+      CLOCK.set(Instant.parse("2026-11-10T15:00:00Z"));
+      Account me = accounts.signup();
+      long today = save(me, "2026-11-11").save();
+      save(me, "2026-11-10").save();
+
+      day(me, "").andExpect(jsonPath("$[*].id").value(contains((int) today)));
+      day(me, "date=2026-11-31")
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
+      mockMvc.perform(get("/api/stats/calendar/workouts")).andExpect(status().isUnauthorized());
+    }
+
+    /** 1件のときと5件のときで、SQL の数が同じ（docs/test-plan.md 4.7） */
+    @Test
+    void 記録の数によらずSQLの数が同じ() throws Exception {
+      Account me = accounts.signup();
+      saveRich(me);
+      int one =
+          sqlCounter.count(() -> day(me, "date=2026-11-10").andExpect(jsonPath("$", hasSize(1))));
+
+      for (int i = 0; i < 4; i++) {
+        saveRich(me);
+      }
+
+      assertThat(one).isPositive();
+      assertThat(
+              sqlCounter.count(
+                  () -> day(me, "date=2026-11-10").andExpect(jsonPath("$", hasSize(5)))))
+          .isEqualTo(one);
+    }
+
+    private void saveRich(Account account) {
+      long id =
+          save(account, "2026-11-10")
+              .weightReps("ベンチプレス", 60, 10, 3)
+              .reps("腕立て伏せ", 20, 3)
+              .timeDistance("ランニング", 1800, 5.0)
+              .save();
+      workoutRepository.insertImages(id, List.of("workouts/day.jpg"), OffsetDateTime.now(CLOCK));
+    }
+  }
+
   private WorkoutFixture.Builder save(Account account, String performedOn) {
     return workouts.of(account.id()).performedOn(LocalDate.parse(performedOn));
   }
@@ -240,6 +355,17 @@ class StatsIntegrationTest {
   private ResultActions weekly(Account account, String query) throws Exception {
     return mockMvc.perform(
         get("/api/stats/weekly?" + query).header(HttpHeaders.AUTHORIZATION, account.bearer()));
+  }
+
+  private ResultActions calendar(Account account, String query) throws Exception {
+    return mockMvc.perform(
+        get("/api/stats/calendar?" + query).header(HttpHeaders.AUTHORIZATION, account.bearer()));
+  }
+
+  private ResultActions day(Account account, String query) throws Exception {
+    return mockMvc.perform(
+        get("/api/stats/calendar/workouts?" + query)
+            .header(HttpHeaders.AUTHORIZATION, account.bearer()));
   }
 
   private ResultActions monthly(Account account, String query) throws Exception {

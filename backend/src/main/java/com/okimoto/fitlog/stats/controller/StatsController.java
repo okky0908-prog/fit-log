@@ -1,11 +1,13 @@
 package com.okimoto.fitlog.stats.controller;
 
 import com.okimoto.fitlog.auth.config.AuthenticatedUser;
+import com.okimoto.fitlog.image.service.ImageUrls;
 import com.okimoto.fitlog.stats.calc.StatsRules;
 import com.okimoto.fitlog.stats.calc.StatsRules.Daily;
 import com.okimoto.fitlog.stats.calc.StatsRules.Totals;
 import com.okimoto.fitlog.stats.repository.BodyPartCount;
 import com.okimoto.fitlog.stats.service.StatsService;
+import com.okimoto.fitlog.workout.controller.WorkoutCardResponse;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -17,15 +19,48 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 週間・月間の集計（docs/api.md A-90・A-91）。本人の集計だけを返す */
+/** 週間・月間の集計とカレンダー（docs/api.md A-90〜A-93）。本人のデータだけを返す */
 @RestController
 @RequestMapping("/api/stats")
 public class StatsController {
 
   private final StatsService statsService;
+  private final ImageUrls imageUrls;
 
-  public StatsController(StatsService statsService) {
+  public StatsController(StatsService statsService, ImageUrls imageUrls) {
     this.statsService = statsService;
+    this.imageUrls = imageUrls;
+  }
+
+  /**
+   * A-92 の応答。
+   *
+   * @param month 表示する月（YYYY-MM）
+   * @param dates 記録がある日
+   */
+  public record CalendarResponse(String month, List<LocalDate> dates) {}
+
+  /** A-92 カレンダー（記録がある日）。month は YYYY-MM。なければ今月 */
+  @GetMapping("/calendar")
+  public CalendarResponse calendar(
+      @AuthenticationPrincipal AuthenticatedUser user,
+      @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM") YearMonth month) {
+    StatsService.Calendar calendar = statsService.calendar(user.id(), month);
+    return new CalendarResponse(calendar.month().toString(), calendar.dates());
+  }
+
+  /** A-93 その日の自分の記録（投稿日時の順にすべて。ページングしない）。date は YYYY-MM-DD。なければ今日 */
+  @GetMapping("/calendar/workouts")
+  public List<WorkoutCardResponse> dayWorkouts(
+      @AuthenticationPrincipal AuthenticatedUser user,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate date) {
+    StatsService.DayWorkouts day = statsService.dayWorkouts(user.id(), date);
+    return day.items().stream()
+        .map(row ->
+            WorkoutCardResponse.from(
+                row, day.personalBests(), user.id(), imageUrls::urlOf, imageUrls::iconUrlOf))
+        .toList();
   }
 
   /**

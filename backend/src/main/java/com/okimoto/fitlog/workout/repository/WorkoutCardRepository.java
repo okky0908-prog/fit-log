@@ -24,6 +24,7 @@ import static org.jooq.impl.DSL.when;
 import com.okimoto.fitlog.common.calc.Cursor;
 import com.okimoto.fitlog.workout.calc.ExerciseAggregate;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
@@ -95,6 +96,15 @@ public class WorkoutCardRepository {
         afterCursor.and(WORKOUTS.USER_ID.eq(owner)),
         List.of(WORKOUTS.PERFORMED_ON.desc(), WORKOUTS.CREATED_AT.desc(), WORKOUTS.ID.desc()),
         limit);
+  }
+
+  /** その日の自分の記録（A-93）。投稿日時の古い順（同じなら ID の小さい順）に、すべて返す（1日の記録は少ないので、件数で区切らない）。自分の記録は公開範囲に関係なく見られる */
+  public List<WorkoutCardRow> findOwnOn(long me, LocalDate performedOn) {
+    return fetchVisible(
+        me,
+        WORKOUTS.USER_ID.eq(me).and(WORKOUTS.PERFORMED_ON.eq(performedOn)),
+        List.of(WORKOUTS.CREATED_AT.asc(), WORKOUTS.ID.asc()),
+        Integer.MAX_VALUE);
   }
 
   /**

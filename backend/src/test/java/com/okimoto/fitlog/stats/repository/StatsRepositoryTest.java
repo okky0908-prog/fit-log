@@ -178,6 +178,31 @@ class StatsRepositoryTest {
     }
   }
 
+  @Nested
+  class 記録した日 {
+
+    @Test
+    void 記録がある日を_重ねずに日付の順で_両端の日を含めて返す() {
+      long sato = user("stats_sato3");
+      workouts.of(me).performedOn(day("2026-11-15")).save();
+      workouts.of(me).performedOn(day("2026-11-09")).visibility("private").save();
+      workouts.of(me).performedOn(day("2026-11-12")).save();
+      workouts.of(me).performedOn(day("2026-11-12")).save();
+      // 期間の外・他人の記録は入らない
+      workouts.of(me).performedOn(day("2026-11-08")).save();
+      workouts.of(me).performedOn(day("2026-11-16")).save();
+      workouts.of(sato).performedOn(day("2026-11-10")).save();
+
+      assertThat(repository.recordedDates(me, WEEK))
+          .containsExactly(day("2026-11-09"), day("2026-11-12"), day("2026-11-15"));
+    }
+
+    @Test
+    void 記録がなければ空() {
+      assertThat(repository.recordedDates(me, WEEK)).isEmpty();
+    }
+  }
+
   private static LocalDate day(String value) {
     return LocalDate.parse(value);
   }
