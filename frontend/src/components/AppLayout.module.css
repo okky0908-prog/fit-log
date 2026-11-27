@@ -50,6 +50,8 @@
 }
 
 .record {
+  /* パソコンでは、目立つボタンとして右端に置く（並びの順は、スマートフォンのタブバーと同じ） */
+  order: 1;
   margin-left: auto;
   background: var(--color-primary);
   color: #ffffff;
@@ -171,6 +173,7 @@
   }
 
   .record {
+    order: 0;
     margin-left: 0;
     background: none;
     color: var(--color-primary);

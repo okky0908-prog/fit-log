@@ -1,0 +1,176 @@
+.title {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+}
+
+.tabs {
+  display: flex;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+  flex: 1;
+  padding: 10px 0;
+  border-bottom: 3px solid transparent;
+  color: var(--color-text-muted);
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
+
+.tab[aria-selected='true'] {
+  border-bottom-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.message {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px 0;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.message p {
+  margin: 0;
+}
+
+.card {
+  margin-bottom: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.cardTitle {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.cardHead .cardTitle {
+  margin: 0;
+}
+
+.empty {
+  margin: 0;
+  padding: 16px 0;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* 集計値：パソコンは4つ横に、スマートフォンは2つずつ */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 0;
+}
+
+.stat {
+  display: grid;
+  gap: 2px;
+}
+
+.statLabel {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.statValue {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.diff {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* 増減は記号（＋・−・±）でも分かるようにしてあり、色は補助 */
+.up {
+  color: var(--color-primary-hover);
+}
+
+.down {
+  color: var(--color-danger);
+}
+
+.same {
+  color: var(--color-text-muted);
+}
+
+.segments {
+  display: flex;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.segment {
+  padding: 4px 12px;
+  border: none;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.segment[aria-pressed='true'] {
+  background: var(--color-primary);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.parts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.part {
+  display: grid;
+  grid-template-columns: 4em 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+
+.partBar {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--color-background);
+  overflow: hidden;
+}
+
+.partBar span {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+}
+
+.partValue {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

@@ -8,6 +8,7 @@ import { LoginPage } from './LoginPage'
 import { NotificationsPage } from './NotificationsPage'
 import { ProfileEditPage } from './ProfileEditPage'
 import { ProfilePage } from './ProfilePage'
+import { RecordsPage } from './RecordsPage'
 import { SignupPage } from './SignupPage'
 import { VerifyEmailPage } from './VerifyEmailPage'
 import { WorkoutDetailPage } from './WorkoutDetailPage'
@@ -44,6 +45,8 @@ export const routes: RouteObject[] = [
               { path: '/workouts/:workoutId', element: <WorkoutDetailPage /> },
               { path: '/workouts/:workoutId/edit', element: <WorkoutEditorPage /> },
               { path: '/notifications', element: <NotificationsPage /> },
+              { path: '/records', element: <RecordsPage key="week" kind="week" /> },
+              { path: '/records/month', element: <RecordsPage key="month" kind="month" /> },
               { path: '/users/:username', element: <ProfilePage /> },
               { path: '/settings/profile', element: <ProfileEditPage /> },
               {

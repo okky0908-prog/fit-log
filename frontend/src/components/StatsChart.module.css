@@ -1,0 +1,36 @@
+.empty {
+  padding: 24px 0;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.toggle {
+  margin-top: 4px;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.table {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table th,
+.table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.table th:last-child,
+.table td:last-child {
+  text-align: right;
+}

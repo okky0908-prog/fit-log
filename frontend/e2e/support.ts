@@ -45,11 +45,18 @@ export async function signupByApi(request: APIRequestContext, user: TestUser): P
   return ((await res.json()) as { accessToken: string }).accessToken
 }
 
-/** API で記録を作る（下準備）。腕立て伏せ（ID 8）20回 × 1セット。作った記録の ID を返す */
+/** 記録の種目とセット（API の形。重量は kg） */
+export interface ExerciseInput {
+  exerciseId: number
+  sets: { weight?: number; reps?: number; durationSec?: number; distance?: number }[]
+}
+
+/** API で記録を作る（下準備）。種目を省略したら、腕立て伏せ（ID 8）20回 × 1セット。作った記録の ID を返す */
 export async function workoutByApi(
   request: APIRequestContext,
   token: string,
   body: string,
+  exercises: ExerciseInput[] = [{ exerciseId: 8, sets: [{ reps: 20 }] }],
 ): Promise<number> {
   const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date())
   const data = {
@@ -59,7 +66,7 @@ export async function workoutByApi(
     visibility: 'public',
     weightUnit: 'kg',
     distanceUnit: 'km',
-    exercises: [{ exerciseId: 8, sets: [{ reps: 20 }] }],
+    exercises,
   }
   const res = await request.post('/api/workouts', {
     headers: auth(token),

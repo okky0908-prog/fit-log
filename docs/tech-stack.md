@@ -159,7 +159,7 @@
 | サーバーのデータの管理 | TanStack Query 5.107.1 | 新規 | 3.5 |
 | フォーム | React Hook Form 7.92.0・`@hookform/resolvers` 7.0.8 | 新規 | 3.5 |
 | 入力の検証 | Zod 4.6.7 | 新規 | 3.5 |
-| グラフ | Recharts（未定） | 新規 | 3.5。グラフの画面だけ後から読み込む |
+| グラフ | Recharts 3.10.1・react-is 19.3.1 | 新規 | 3.5。グラフの画面だけ後から読み込む（`vite build` で別のファイル。約 370KB・gzip 約 106KB）。Recharts は React と同じ版の react-is を求めるので一緒に入れる。版は固定する（入れた日に出たばかりの 3.11.2 を避けた。2026-11-27） |
 | 日付 | date-fns（未定） | 新規 | 3.5 |
 | サーバー通信 | 標準の fetch API | ○ | JWT を付ける・401 でトークンを取り直す、といった共通処理は自前の小さな関数にまとめ、TanStack Query から呼ぶ |
 | 状態管理 | React 標準（useState / useContext 等） | ○ | サーバーのデータは TanStack Query、ログインユーザーと単位の設定は Context |
