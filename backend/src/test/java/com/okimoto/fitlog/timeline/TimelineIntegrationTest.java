@@ -1,6 +1,7 @@
 package com.okimoto.fitlog.timeline;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
@@ -358,6 +359,68 @@ class TimelineIntegrationTest {
       userWorkouts(me, me.username(), timelineCursor)
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.errors[0].field").value("cursor"));
+    }
+  }
+
+  /** 投稿カードの種目の要約の、自己ベスト更新の印（F-85） */
+  @Nested
+  class 自己ベストの印 {
+
+    @Test
+    void タイムラインと記録一覧で_更新した種目に付ける() throws Exception {
+      Account me = accounts.signup();
+      Account sato = accounts.signup();
+      follow(me, sato);
+      long first =
+          workouts
+              .of(sato.id())
+              .performedOn(LocalDate.of(2026, 11, 10))
+              .createdAt(newest())
+              .weightReps("ベンチプレス", 60, 5, 1)
+              .save();
+      // スクワットは初めてなので付かない。同じ種目が2回なら、最大重量を出した方（3つ目）に付ける
+      long second =
+          workouts
+              .of(sato.id())
+              .performedOn(LocalDate.of(2026, 11, 12))
+              .createdAt(newest())
+              .weightReps("スクワット", 100, 5, 1)
+              .weightReps("ベンチプレス", 65, 5, 1)
+              .weightReps("ベンチプレス", 70, 5, 1)
+              .save();
+
+      for (ResultActions page :
+          List.of(timeline(me, null), userWorkouts(me, sato.username(), null))) {
+        page.andExpect(jsonPath("$.items[0].id").value(second))
+            .andExpect(
+                jsonPath("$.items[0].exerciseSummaries[*].personalBest")
+                    .value(contains(false, false, true)))
+            .andExpect(jsonPath("$.items[1].id").value(first))
+            .andExpect(jsonPath("$.items[1].exerciseSummaries[0].personalBest").value(false));
+      }
+    }
+
+    @Test
+    void 投稿者の自分のみの記録とも比べる() throws Exception {
+      Account me = accounts.signup();
+      Account sato = accounts.signup();
+      workouts
+          .of(sato.id())
+          .performedOn(LocalDate.of(2026, 11, 10))
+          .visibility("private")
+          .weightReps("ベンチプレス", 80, 5, 1)
+          .save();
+      long id =
+          workouts
+              .of(sato.id())
+              .performedOn(LocalDate.of(2026, 11, 12))
+              .weightReps("ベンチプレス", 70, 5, 1)
+              .save();
+
+      userWorkouts(me, sato.username(), null)
+          .andExpect(jsonPath("$.items", hasSize(1)))
+          .andExpect(jsonPath("$.items[0].id").value(id))
+          .andExpect(jsonPath("$.items[0].exerciseSummaries[0].personalBest").value(false));
     }
   }
 

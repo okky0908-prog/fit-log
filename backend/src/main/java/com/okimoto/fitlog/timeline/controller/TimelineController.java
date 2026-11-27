@@ -81,7 +81,9 @@ public class TimelineController {
   private PageResponse response(TimelineService.Page page, long me) {
     return new PageResponse(
         page.items().stream()
-            .map(row -> WorkoutCardResponse.from(row, me, imageUrls::urlOf, imageUrls::iconUrlOf))
+            .map(row ->
+                WorkoutCardResponse.from(
+                    row, page.personalBests(), me, imageUrls::urlOf, imageUrls::iconUrlOf))
             .toList(),
         page.nextCursor(),
         page.nextCursor() != null);

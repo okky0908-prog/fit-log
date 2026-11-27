@@ -2,7 +2,7 @@ package com.okimoto.fitlog.workout.controller;
 
 import com.okimoto.fitlog.auth.config.AuthenticatedUser;
 import com.okimoto.fitlog.image.service.ImageUrls;
-import com.okimoto.fitlog.workout.repository.WorkoutDetail;
+import com.okimoto.fitlog.workout.service.MarkedWorkout;
 import com.okimoto.fitlog.workout.service.WorkoutInput;
 import com.okimoto.fitlog.workout.service.WorkoutService;
 import java.io.IOException;
@@ -77,8 +77,9 @@ public class WorkoutController {
   }
 
   /** 閲覧を許可した記録（Service で確かめたもの）なので、ここで画像の署名付き URL を作る */
-  private WorkoutResponse response(WorkoutDetail detail, long me) {
-    return WorkoutResponse.from(detail, me, imageUrls::urlOf, imageUrls::iconUrlOf);
+  private WorkoutResponse response(MarkedWorkout workout, long me) {
+    return WorkoutResponse.from(
+        workout.detail(), workout.personalBests(), me, imageUrls::urlOf, imageUrls::iconUrlOf);
   }
 
   private static List<byte[]> contents(List<MultipartFile> images) {
