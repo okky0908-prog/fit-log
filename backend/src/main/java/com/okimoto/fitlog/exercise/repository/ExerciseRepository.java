@@ -16,6 +16,7 @@ import java.util.Optional;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.Field;
+import org.jooq.SortField;
 import org.jooq.Table;
 import org.springframework.stereotype.Repository;
 
@@ -50,14 +51,19 @@ public class ExerciseRepository {
         .where(EXERCISES.OWNER_ID.isNull().or(EXERCISES.OWNER_ID.eq(ownerId)))
         .and(byName)
         .and(byBodyPart)
-        .orderBy(
-            EXERCISES.BODY_PART.sortAsc(BODY_PART_ORDER),
-            // 用意された種目（owner_id が NULL）を先に
-            EXERCISES.OWNER_ID.nullsFirst(),
-            EXERCISES.SORT_ORDER,
-            EXERCISES.NAME_KEY,
-            EXERCISES.ID)
+        .orderBy(listOrder())
         .fetch();
+  }
+
+  /** 種目の一覧の並び順：部位の順 → 用意された種目の順（sort_order）→ 自分専用の種目の名前の順（A-30・A-95） */
+  public static List<SortField<?>> listOrder() {
+    return List.of(
+        EXERCISES.BODY_PART.sortAsc(BODY_PART_ORDER),
+        // 用意された種目（owner_id が NULL）を先に
+        EXERCISES.OWNER_ID.asc().nullsFirst(),
+        EXERCISES.SORT_ORDER.asc(),
+        EXERCISES.NAME_KEY.asc(),
+        EXERCISES.ID.asc());
   }
 
   /**
@@ -156,6 +162,14 @@ public class ExerciseRepository {
     return dsl.selectFrom(EXERCISES)
         .where(EXERCISES.ID.eq(id))
         .and(EXERCISES.OWNER_ID.eq(ownerId))
+        .fetchOptional();
+  }
+
+  /** その人が見てよい種目（最初から用意された種目と、その人の自分専用の種目）。他人の種目・存在しない種目は空 */
+  public Optional<ExercisesRecord> findVisible(long id, long ownerId) {
+    return dsl.selectFrom(EXERCISES)
+        .where(EXERCISES.ID.eq(id))
+        .and(EXERCISES.OWNER_ID.isNull().or(EXERCISES.OWNER_ID.eq(ownerId)))
         .fetchOptional();
   }
 

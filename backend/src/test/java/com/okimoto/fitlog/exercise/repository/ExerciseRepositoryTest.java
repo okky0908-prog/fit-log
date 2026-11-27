@@ -149,6 +149,16 @@ class ExerciseRepositoryTest {
   }
 
   @Test
+  void 見てよい種目は_用意された種目と本人の種目_他人の種目と存在しない種目は空() {
+    long mine = add(me, "自分の種目", "legs").getId();
+
+    assertThat(exerciseRepository.findVisible(1L, me)).isPresent();
+    assertThat(exerciseRepository.findVisible(mine, me)).isPresent();
+    assertThat(exerciseRepository.findVisible(mine, other)).isEmpty();
+    assertThat(exerciseRepository.findVisible(Long.MAX_VALUE, me)).isEmpty();
+  }
+
+  @Test
   void 名前_部位_METsを変えると_記録方式は変えずに更新日時を新しくする() {
     long mine = add(me, "自分の種目", "legs").getId();
 
