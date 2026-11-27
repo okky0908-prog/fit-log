@@ -423,6 +423,30 @@ class WorkoutCardRepositoryTest {
     }
   }
 
+  /** その日の自分の記録（A-93） */
+  @Nested
+  class その日の自分の記録 {
+
+    @Test
+    void 自分のその日の記録を_投稿日時の古い順に_自分のみの記録も返す() {
+      LocalDate day = LocalDate.of(2026, 11, 10);
+      long later = workouts.of(me).performedOn(day).createdAt(BASE.plusMinutes(5)).save();
+      long first = workouts.of(me).performedOn(day).createdAt(BASE).visibility("private").save();
+      long sameTime = workouts.of(me).performedOn(day).createdAt(BASE.plusMinutes(5)).save();
+      // ほかの日・他人の記録は出ない
+      workouts.of(me).performedOn(day.minusDays(1)).createdAt(BASE).save();
+      workouts.of(me).performedOn(day.plusDays(1)).createdAt(BASE).save();
+      workouts.of(sato).performedOn(day).createdAt(BASE).save();
+
+      assertThat(ids(repository.findOwnOn(me, day))).containsExactly(first, later, sameTime);
+    }
+
+    @Test
+    void 記録がなければ空() {
+      assertThat(repository.findOwnOn(me, LocalDate.of(2026, 11, 10))).isEmpty();
+    }
+  }
+
   private long maxWorkoutId() {
     Long max = dsl.select(org.jooq.impl.DSL.max(WORKOUTS.ID)).from(WORKOUTS).fetchSingle().value1();
     return max == null ? 0 : max;

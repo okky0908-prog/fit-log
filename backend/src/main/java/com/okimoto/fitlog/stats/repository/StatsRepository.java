@@ -12,6 +12,7 @@ import static org.jooq.impl.DSL.sum;
 import com.okimoto.fitlog.stats.calc.DayTotal;
 import com.okimoto.fitlog.stats.calc.StatsRules.Period;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
@@ -76,6 +77,15 @@ public class StatsRepository {
         .groupBy(EXERCISES.BODY_PART)
         .orderBy(setCount.desc(), EXERCISES.BODY_PART.sortAsc(BODY_PART_ORDER))
         .fetch(Records.mapping(BodyPartCount::new));
+  }
+
+  /** 期間の、記録がある日（カレンダーの印。A-92）。日付の順に、重ねずに返す */
+  public List<LocalDate> recordedDates(long me, Period period) {
+    return dsl.selectDistinct(WORKOUTS.PERFORMED_ON)
+        .from(WORKOUTS)
+        .where(mine(me, period))
+        .orderBy(WORKOUTS.PERFORMED_ON)
+        .fetch(WORKOUTS.PERFORMED_ON);
   }
 
   /** 本人の、期間の中（両端の日を含む）の記録。公開範囲は見ない */
