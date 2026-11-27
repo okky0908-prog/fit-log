@@ -61,6 +61,16 @@ export function formatPace(seconds: number, km: number, unit: DistanceUnit): str
   return `${Math.floor(perUnit / 60)}:${twoDigits(perUnit % 60)}/${unit}`
 }
 
+/** 集計のペース（1km あたりの秒）を、距離の単位あたりの秒（整数に四捨五入）に */
+export function paceSecondsPer(secondsPerKm: number, unit: DistanceUnit): number {
+  return unit === 'mi' ? Math.round(secondsPerKm * KM_PER_MILE) : secondsPerKm
+}
+
+/** 距離の単位あたりの秒を「6:00/km」の形に。formatPace と同じく、分は 60 を超えてもそのまま出す */
+export function formatPaceValue(secondsPerUnit: number, unit: DistanceUnit): string {
+  return `${Math.floor(secondsPerUnit / 60)}:${twoDigits(secondsPerUnit % 60)}/${unit}`
+}
+
 function twoDigits(value: number): string {
   return String(value).padStart(2, '0')
 }

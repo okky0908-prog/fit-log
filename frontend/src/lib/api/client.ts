@@ -24,6 +24,9 @@ import type {
   MonthlyStats,
   CalendarDates,
   RunningStats,
+  UsedExercise,
+  TrendRange,
+  ExerciseTrend,
 } from './types'
 import type { WorkoutInput } from '../validation/workout'
 
@@ -472,4 +475,16 @@ export function fetchRunningStats(
   date: string,
 ): Promise<RunningStats> {
   return apiFetch(`/api/stats/running?${new URLSearchParams({ period, date })}`, { auth: true })
+}
+
+/** A-95 自分が記録した種目（部位の順。最後に記録した日つき） */
+export function fetchUsedExercises(): Promise<UsedExercise[]> {
+  return apiFetch('/api/stats/exercises', { auth: true })
+}
+
+/** A-96 種目ごとの推移と自己ベスト。見えない・ない種目は 404（EXERCISE_NOT_FOUND） */
+export function fetchExerciseTrend(exerciseId: number, range: TrendRange): Promise<ExerciseTrend> {
+  return apiFetch(`/api/stats/exercises/${exerciseId}?${new URLSearchParams({ range })}`, {
+    auth: true,
+  })
 }

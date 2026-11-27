@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'vitest'
-import { formatDistance, formatDuration, formatPace, formatWeight } from './units'
+import {
+  formatDistance,
+  formatDuration,
+  formatPace,
+  formatPaceValue,
+  formatWeight,
+  paceSecondsPer,
+} from './units'
 
 // 単位の換算と表示の桁（docs/features.md F-63：重量は kg なら 0.25・lb なら 0.5 単位に丸める。距離は小数第2位まで。ペースは m:ss）
 
@@ -69,5 +76,21 @@ describe('ペース', () => {
 
   test('1時間以上かかるペースも m:ss のまま分で出す', () => {
     expect(formatPace(3900, 1, 'km')).toBe('65:00/km')
+  })
+})
+
+describe('集計のペース（1km あたりの秒から）', () => {
+  test('マイル表示なら1マイルあたりの秒に換算し、整数に四捨五入する', () => {
+    expect(paceSecondsPer(360, 'km')).toBe(360)
+    // 360 × 1.609344 ＝ 579.36
+    expect(paceSecondsPer(360, 'mi')).toBe(579)
+    // 365 × 1.609344 ＝ 587.41
+    expect(paceSecondsPer(365, 'mi')).toBe(587)
+  })
+
+  test('「6:00/km」。記録の詳細のペースと同じく、分は 60 を超えてもそのまま出す', () => {
+    expect(formatPaceValue(360, 'km')).toBe('6:00/km')
+    expect(formatPaceValue(579, 'mi')).toBe('9:39/mi')
+    expect(formatPaceValue(3700, 'km')).toBe('61:40/km')
   })
 })

@@ -112,10 +112,14 @@ export function formatMetric(value: number, metric: Metric, units: Units): strin
 }
 
 /**
- * グラフの横軸の目盛りの文字。スマートフォンの幅でも全部出るよう、週の「〜」と、月の「月」（「11月」→「11」）を省く。
+ * グラフの横軸の目盛りの文字。スマートフォンの幅でも全部出るよう、週の「〜」と、月の「月」（「11月」→「11」）、日付の年（「2026/11/04」→「11/4」）を省く。
  * 曜日の「月」（月曜）は数字が付かないので省かない
  */
 export function axisLabel(label: string): string {
+  const date = /^\d{4}\/(\d{2})\/(\d{2})$/.exec(label)
+  if (date !== null) {
+    return `${Number(date[1])}/${Number(date[2])}`
+  }
   return label.replace('〜', '').replace(/^(\d+)月$/, '$1')
 }
 

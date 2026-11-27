@@ -4,6 +4,7 @@ import styles from './StatsChart.module.css'
 
 // グラフの部品（Recharts）は大きいので、グラフの画面を開いたときに後から読み込む（docs/tech-stack.md 3.5）
 const StatsBarChart = lazy(() => import('./StatsBarChart'))
+const StatsLineChart = lazy(() => import('./StatsLineChart'))
 
 interface Props {
   /** グラフの説明（「曜日ごとの総挙上量」）。表の見出しにも使う */
@@ -14,13 +15,16 @@ interface Props {
   valueName: string
   points: ChartPoint[]
   format: (value: number) => string
+  /** 棒グラフ（期間ごとの値。既定）か、折れ線グラフ（種目ごとの推移） */
+  type?: 'bar' | 'line'
 }
 
 /**
- * 棒グラフ（docs/screens.md「グラフ（共通）」）。値を押す・マウスを乗せると、その値を出す。
+ * 棒グラフ・折れ線グラフ（docs/screens.md「グラフ（共通）」）。値を押す・マウスを乗せると、その値を出す。
  * 画面の読み上げのため、同じ内容の表を「表で見る」で開ける。データがなければ「この期間の記録はありません」
  */
-export function StatsChart({ title, labelHeader, valueName, points, format }: Props) {
+export function StatsChart({ title, labelHeader, valueName, points, format, type = 'bar' }: Props) {
+  const Chart = type === 'line' ? StatsLineChart : StatsBarChart
   const [tableOpen, setTableOpen] = useState(false)
   if (!hasChartData(points)) {
     return <p className={styles.empty}>この期間の記録はありません</p>
@@ -28,7 +32,7 @@ export function StatsChart({ title, labelHeader, valueName, points, format }: Pr
   return (
     <>
       <Suspense fallback={<p className={styles.empty}>グラフを読み込み中…</p>}>
-        <StatsBarChart title={title} valueName={valueName} points={points} format={format} />
+        <Chart title={title} valueName={valueName} points={points} format={format} />
       </Suspense>
       <button
         type="button"
