@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import * as api from '../lib/api/client'
@@ -12,6 +12,8 @@ vi.mock('../lib/api/client', (original) =>
 vi.mock('../components/StatsBarChart', () => ({
   default: ({ title }: { title: string }) => <div data-testid="bar-chart">{title}</div>,
 }))
+
+// 通信の関数が呼ばれたかは waitFor で待って確かめる（通信は画面を描いたあとに始まるので、遅い CI では文字が出た時点でまだ呼ばれていない）
 
 // S-20 記録（ダッシュボード）の週間・月間（docs/screens.md）。カレンダーは 2-4、目標は段階 3、消費カロリーは段階 5 で足す
 
@@ -152,7 +154,7 @@ describe('週間', () => {
     expect(await screen.findByRole('heading', { name: '記録' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: '週間' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('2026/11/09（月）〜 11/15（日）')).toBeInTheDocument()
-    expect(api.fetchWeeklyStats).toHaveBeenCalledWith('2026-11-09')
+    await waitFor(() => expect(api.fetchWeeklyStats).toHaveBeenCalledWith('2026-11-09'))
 
     const stats = await screen.findByRole('region', { name: '集計' })
     expect(within(stats).getByText('4日')).toBeInTheDocument()
@@ -208,7 +210,7 @@ describe('週間', () => {
 
     expect(await screen.findByText('2026/11/02（月）〜 11/08（日）')).toBeInTheDocument()
     expect(router.state.location.search).toBe('?week=2026-11-02')
-    expect(api.fetchWeeklyStats).toHaveBeenCalledWith('2026-11-02')
+    await waitFor(() => expect(api.fetchWeeklyStats).toHaveBeenCalledWith('2026-11-02'))
     await user.click(screen.getByRole('link', { name: '次の週' }))
     expect(await screen.findByText('2026/11/09（月）〜 11/15（日）')).toBeInTheDocument()
 
@@ -221,7 +223,7 @@ describe('週間', () => {
   test('URL の週を開く。未来の週は今週にする', async () => {
     renderApp('/records?week=2026-10-28')
     expect(await screen.findByText('2026/10/26（月）〜 11/01（日）')).toBeInTheDocument()
-    expect(api.fetchWeeklyStats).toHaveBeenCalledWith('2026-10-26')
+    await waitFor(() => expect(api.fetchWeeklyStats).toHaveBeenCalledWith('2026-10-26'))
   })
 
   test('この期間の記録がなければ、グラフと部位別の代わりにそう出す', async () => {
@@ -260,7 +262,7 @@ describe('月間', () => {
       await within(await screen.findByRole('tabpanel')).findByText('2026年11月'),
     ).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: '月間' })).toHaveAttribute('aria-selected', 'true')
-    expect(api.fetchMonthlyStats).toHaveBeenCalledWith('2026-11')
+    await waitFor(() => expect(api.fetchMonthlyStats).toHaveBeenCalledWith('2026-11'))
     expect(await screen.findByText('600kg')).toBeInTheDocument()
 
     const chart = screen.getByRole('region', { name: '週ごと' })
@@ -286,7 +288,7 @@ describe('月間', () => {
 
     expect(await within(screen.getByRole('tabpanel')).findByText('2026年10月')).toBeInTheDocument()
     expect(router.state.location.search).toBe('?month=2026-10')
-    expect(api.fetchMonthlyStats).toHaveBeenCalledWith('2026-10')
+    await waitFor(() => expect(api.fetchMonthlyStats).toHaveBeenCalledWith('2026-10'))
     expect(screen.getByRole('link', { name: '今月' })).toBeInTheDocument()
   })
 })
@@ -297,7 +299,7 @@ describe('カレンダー', () => {
 
     const calendar = await screen.findByRole('region', { name: 'カレンダー' })
     expect(within(calendar).getByText('2026年11月')).toBeInTheDocument()
-    expect(api.fetchCalendar).toHaveBeenCalledWith('2026-11')
+    await waitFor(() => expect(api.fetchCalendar).toHaveBeenCalledWith('2026-11'))
     expect(
       await within(calendar).findByRole('link', { name: '11月4日（水） 記録あり' }),
     ).toHaveTextContent('4●')
@@ -325,7 +327,7 @@ describe('カレンダー', () => {
     expect(await within(day).findByRole('article', { name: '山田太郎の記録' })).toHaveTextContent(
       '胸の日',
     )
-    expect(api.fetchDayWorkouts).toHaveBeenCalledWith('2026-11-04')
+    await waitFor(() => expect(api.fetchDayWorkouts).toHaveBeenCalledWith('2026-11-04'))
     expect(screen.getByRole('link', { name: '11月4日（水） 記録あり' })).toHaveAttribute(
       'aria-current',
       'true',
@@ -349,7 +351,7 @@ describe('カレンダー', () => {
     const calendar = await screen.findByRole('region', { name: 'カレンダー' })
     expect(await within(calendar).findByText('2026年10月')).toBeInTheDocument()
     expect(router.state.location.search).toBe('?cal=2026-10')
-    expect(api.fetchCalendar).toHaveBeenCalledWith('2026-10')
+    await waitFor(() => expect(api.fetchCalendar).toHaveBeenCalledWith('2026-10'))
     expect(
       await within(calendar).findByRole('link', { name: '10月31日（土） 記録あり' }),
     ).toBeInTheDocument()
@@ -403,7 +405,7 @@ test('記録が1件もなければ、集計の代わりに記録を促す', asyn
   ).toBeInTheDocument()
   expect(screen.getByRole('link', { name: '＋ 記録する' })).toHaveAttribute('href', '/workouts/new')
   expect(screen.queryByRole('region', { name: '集計' })).not.toBeInTheDocument()
-  expect(api.fetchUserWorkouts).toHaveBeenCalledWith(ME.username)
+  await waitFor(() => expect(api.fetchUserWorkouts).toHaveBeenCalledWith(ME.username))
 })
 
 test('ナビゲーションの「記録」は、週間・月間のどちらでも選ばれた見た目にする', async () => {
