@@ -111,6 +111,37 @@ class CursorTest {
     }
   }
 
+  /** 体重の一覧（A-101）は、1日1件なので日付だけで位置が決まる */
+  @Nested
+  class 日付だけ {
+
+    @Test
+    void 作ったカーソルを読むと_同じ日付に戻る() {
+      assertThat(Cursor.decodeDate(Cursor.encodeDate(LocalDate.of(2026, 11, 20))))
+          .contains(LocalDate.of(2026, 11, 20));
+    }
+
+    @Test
+    void ほかのカーソルとは取り違えない() {
+      assertThat(
+              Cursor.decodeDate(
+                  Cursor.encode(OffsetDateTime.parse("2026-11-23T10:15:00+09:00"), 12L)))
+          .isEmpty();
+      assertThat(Cursor.decode(Cursor.encodeDate(LocalDate.of(2026, 11, 20)))).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"日付でない", "2026-02-30", "2026-11-20|12", ""})
+    void 中身の形が違えば読めない(String payload) {
+      assertThat(Cursor.decodeDate(base64(payload))).isEmpty();
+    }
+
+    @Test
+    void 文字の形が違えば読めない() {
+      assertThat(Cursor.decodeDate("abc$")).isEmpty();
+    }
+  }
+
   private static String base64(String payload) {
     return Base64.getUrlEncoder()
         .withoutPadding()

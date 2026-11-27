@@ -1,9 +1,11 @@
 package com.okimoto.fitlog.mail.repository;
 
+import static com.okimoto.fitlog.jooq.Tables.MAIL_SEND_LOGS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.okimoto.fitlog.support.TestcontainersConfiguration;
 import java.time.OffsetDateTime;
+import org.jooq.DSLContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.jooq.test.autoconfigure.JooqTest;
@@ -20,6 +22,7 @@ class MailSendLogRepositoryTest {
   private static final String EMAIL = "yamada@example.com";
 
   @Autowired private MailSendLogRepository repository;
+  @Autowired private DSLContext dsl;
 
   /** 直近1時間：1時間ちょうど前の送信は数えない（ちょうど1時間たったら次を送れる）。1時間より1秒新しいものは数える */
   @Test
@@ -41,6 +44,8 @@ class MailSendLogRepositoryTest {
 
   @Test
   void 指定した日時より前の記録を消す() {
+    // 表全体が対象なので、ほかの結合テスト（時計を過去に固定したもの）が残した送信の記録を先に消す（このテストの終わりにロールバックされる）
+    dsl.deleteFrom(MAIL_SEND_LOGS).execute();
     repository.insert(EMAIL, MailType.VERIFY_EMAIL, NOW.minusDays(1).minusSeconds(1));
     repository.insert(EMAIL, MailType.VERIFY_EMAIL, NOW.minusDays(1));
 

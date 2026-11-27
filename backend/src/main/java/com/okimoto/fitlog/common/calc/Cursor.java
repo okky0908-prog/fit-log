@@ -45,6 +45,23 @@ public final class Cursor {
     return toBase64(performedOn + SEPARATOR + createdAt.toInstant() + SEPARATOR + id);
   }
 
+  /** 日付だけのカーソル（体重の一覧。1日1件なので、日付だけで位置が決まる） */
+  public static String encodeDate(LocalDate date) {
+    return toBase64(date.toString());
+  }
+
+  /** 日付だけのカーソルを読む。形が違えば空 */
+  public static Optional<LocalDate> decodeDate(String cursor) {
+    return parts(cursor, 1)
+        .flatMap(parts -> {
+          try {
+            return Optional.of(LocalDate.parse(parts[0]));
+          } catch (DateTimeParseException e) {
+            return Optional.empty();
+          }
+        });
+  }
+
   /** カーソルを読む。形が違えば空 */
   public static Optional<Position> decode(String cursor) {
     return parts(cursor, 2).flatMap(parts -> position(parts[0], parts[1]));

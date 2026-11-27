@@ -835,13 +835,15 @@ S3 のバケットは公開しないので、画像（記録の画像・アイ�
 - パスの `{date}` の日の記録を作るか上書きする（何回呼んでも同じ結果）。リクエスト：`{ "weight": 73.0, "weightUnit": "kg", "bodyFatPct": 18.5 }`
 - 刻み（kg は 0.1、lb は 0.2）と範囲は [機能要件の体重](./features.md#体重の記録) のとおり。未来の日付は 400
 - 作ったら 201、上書きしたら 200 で、`{ "recordedOn", "weightKg", "bodyFatPct" }` を返す
-- 確定後に、体重の目標の達成を判定する
+- 上書きは、その日の記録をまるごと置きかえる（`bodyFatPct` を送らなければ、体脂肪率は消える）
+- エラーの `field` は `weight`・`weightUnit`・`bodyFatPct`、未来の日付は `recordedOn`。すべての項目のエラーをまとめて返す。単位が正しくなければ、体重の範囲は確かめない
+- 確定後に、体重の目標の達成を判定する（目標を作る段階 3 で足す）
 
 #### A-101〜A-103
 
-- A-101 は日付の新しい順に30件ずつ（S-25）
+- A-101 は日付の新しい順に30件ずつ（S-25）。`{ "items": [ { "recordedOn", "weightKg", "bodyFatPct" } ], "nextCursor", "hasNext" }`
 - A-102 はその日の記録を消す。なければ 404（`BODY_RECORD_NOT_FOUND`）。204
-- A-103 の `range` は `3m`・`1y`。`{ "points": [ { "date", "weightKg", "bodyFatPct" } ] }` を日付の古い順に返す
+- A-103 の `range` は `3m`・`1y`（なければ `3m`。それ以外は 400 `MALFORMED_REQUEST`。今日（日本時間）の3か月前・1年前の同じ日から）。`{ "points": [ { "date", "weightKg", "bodyFatPct" } ] }` を日付の古い順に返す
 
 ### 目標
 
