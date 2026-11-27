@@ -56,5 +56,7 @@ export async function mockApiClient(importOriginal: () => Promise<typeof api>) {
     fetchUserWorkouts: vi.fn<typeof actual.fetchUserWorkouts>(async () => EMPTY_PAGE),
     fetchWeeklyStats: vi.fn<typeof actual.fetchWeeklyStats>(),
     fetchMonthlyStats: vi.fn<typeof actual.fetchMonthlyStats>(),
+    fetchCalendar: vi.fn<typeof actual.fetchCalendar>(),
+    fetchDayWorkouts: vi.fn<typeof actual.fetchDayWorkouts>(),
   }
 }

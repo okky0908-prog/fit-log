@@ -332,3 +332,9 @@ export interface MonthlyStats {
   }[]
   bodyParts: BodyPartCount[]
 }
+
+/** A-92 カレンダー（記録がある日） */
+export interface CalendarDates {
+  month: string
+  dates: string[]
+}

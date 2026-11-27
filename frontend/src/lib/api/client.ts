@@ -22,6 +22,7 @@ import type {
   UserListItem,
   WeeklyStats,
   MonthlyStats,
+  CalendarDates,
 } from './types'
 import type { WorkoutInput } from '../validation/workout'
 
@@ -450,4 +451,16 @@ export function fetchWeeklyStats(date: string): Promise<WeeklyStats> {
 /** A-91 月間の集計。month は YYYY-MM */
 export function fetchMonthlyStats(month: string): Promise<MonthlyStats> {
   return apiFetch(`/api/stats/monthly?${new URLSearchParams({ month })}`, { auth: true })
+}
+
+/** A-92 カレンダー（その月の、自分の記録がある日）。month は YYYY-MM */
+export function fetchCalendar(month: string): Promise<CalendarDates> {
+  return apiFetch(`/api/stats/calendar?${new URLSearchParams({ month })}`, { auth: true })
+}
+
+/** A-93 その日の自分の記録（投稿日時の順にすべて）。date は YYYY-MM-DD */
+export function fetchDayWorkouts(date: string): Promise<WorkoutCard[]> {
+  return apiFetch(`/api/stats/calendar/workouts?${new URLSearchParams({ date })}`, {
+    auth: true,
+  })
 }

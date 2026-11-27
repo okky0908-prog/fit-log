@@ -4,15 +4,21 @@ import type { LikeState } from '../api/types'
 /*
  * 読み込み済みのデータ（TanStack Query のキャッシュ）の中の、記録の値を書き換える。
  * ナイストレーニング・コメントの操作のあとに、同じ記録を出しているほかの画面（タイムライン・プロフィールの記録一覧・投稿詳細）の
- * 表示も同じ値にするために使う。記録の詳細（Workout）と、一覧のページ（useInfiniteQuery の pages）の両方を扱う
+ * 表示も同じ値にするために使う。記録の詳細（Workout）と、一覧のページ（useInfiniteQuery の pages）と、
+ * 記録の配列（カレンダーのその日の記録。ページングしない）を扱う
  */
 
 /** 書き換える値 */
 export type WorkoutValues = Partial<LikeState & { commentCount: number }>
 
-/** その記録を出しうる、読み込み済みのデータ（タイムライン・プロフィールの記録一覧・記録の詳細） */
+/** その記録を出しうる、読み込み済みのデータ（タイムライン・プロフィールの記録一覧・記録の詳細・カレンダーのその日の記録） */
 export function workoutQueryFilters(workoutId: number): QueryFilters[] {
-  return [{ queryKey: ['timeline'] }, { queryKey: ['users'] }, { queryKey: ['workout', workoutId] }]
+  return [
+    { queryKey: ['timeline'] },
+    { queryKey: ['users'] },
+    { queryKey: ['workout', workoutId] },
+    { queryKey: ['stats', 'calendar-day'] },
+  ]
 }
 
 /** 記録（詳細・一覧の1件）の形。ナイストレーニングの項目を持つものだけを書き換える */
@@ -35,6 +41,15 @@ function isPages(value: unknown): value is { pages: { items: unknown[] }[] } {
 export function withWorkoutValues<T>(data: T, workoutId: number, values: WorkoutValues): T {
   if (isWorkout(data)) {
     return data.id === workoutId ? { ...data, ...values } : data
+  }
+  if (Array.isArray(data)) {
+    return (
+      data.some((item) => isWorkout(item) && item.id === workoutId)
+        ? data.map((item) =>
+            isWorkout(item) && item.id === workoutId ? { ...item, ...values } : item,
+          )
+        : data
+    ) as T
   }
   if (isPages(data)) {
     let changed = false

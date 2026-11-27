@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { withWorkoutValues } from './workoutCache'
+import { withWorkoutValues, workoutQueryFilters } from './workoutCache'
 
 // 読み込み済みのデータの中の、記録の値の書き換え（ナイストレーニング・コメントの操作のあと）
 
@@ -42,6 +42,23 @@ describe('読み込み済みのデータの書き換え', () => {
     expect(result.pages[0].items[1]).toBe(data.pages[0].items[1])
     expect(result.pages[1]).toBe(data.pages[1])
     expect(result.pageParams).toBe(data.pageParams)
+  })
+
+  test('記録の配列（カレンダーのその日の記録）は、その記録だけを書き換える', () => {
+    const data = [
+      { id: 1, likeCount: 4, likedByMe: false },
+      { id: 2, likeCount: 0, likedByMe: false },
+    ]
+
+    const result = withWorkoutValues(data, 1, liked)
+
+    expect(result[0]).toEqual({ id: 1, ...liked })
+    expect(result[1]).toBe(data[1])
+    expect(withWorkoutValues(data, 3, liked)).toBe(data)
+  })
+
+  test('書き換える対象に、カレンダーのその日の記録も入る', () => {
+    expect(workoutQueryFilters(1)).toContainEqual({ queryKey: ['stats', 'calendar-day'] })
   })
 
   test('記録でないデータ（プロフィール・ユーザーの一覧）と、まだないデータはそのまま', () => {

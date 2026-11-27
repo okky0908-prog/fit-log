@@ -77,7 +77,7 @@ export function monthLabel(month: string): string {
 }
 
 /** 正しい日付か（2026-02-30 のような、ない日は false） */
-function isDate(value: string): boolean {
+export function isDate(value: string): boolean {
   if (!DATE_PATTERN.test(value)) {
     return false
   }
@@ -90,7 +90,8 @@ function toUtc(date: string): Date {
   return new Date(`${date}T00:00:00Z`)
 }
 
-function weekday(date: string): string {
+/** 曜日（「月」） */
+export function weekday(date: string): string {
   return WEEKDAYS[toUtc(date).getUTCDay()]
 }
 

@@ -174,3 +174,11 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+.workouts {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
