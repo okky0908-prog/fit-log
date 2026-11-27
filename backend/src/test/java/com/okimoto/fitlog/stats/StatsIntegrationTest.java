@@ -1,5 +1,6 @@
 package com.okimoto.fitlog.stats;
 
+import static com.okimoto.fitlog.jooq.Tables.EXERCISES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.everyItem;
@@ -10,6 +11,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.okimoto.fitlog.exercise.repository.ExerciseRepository;
+import com.okimoto.fitlog.exercise.repository.NewExercise;
 import com.okimoto.fitlog.support.MutableClock;
 import com.okimoto.fitlog.support.SqlCounter;
 import com.okimoto.fitlog.support.TestAccounts;
@@ -18,6 +21,7 @@ import com.okimoto.fitlog.support.TestcontainersConfiguration;
 import com.okimoto.fitlog.support.WorkoutFixture;
 import com.okimoto.fitlog.workout.calc.StoredSet;
 import com.okimoto.fitlog.workout.repository.WorkoutRepository;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -61,6 +65,7 @@ class StatsIntegrationTest {
   @Autowired private DSLContext dsl;
   @Autowired private WorkoutRepository workoutRepository;
   @Autowired private SqlCounter sqlCounter;
+  @Autowired private ExerciseRepository exerciseRepository;
 
   private TestAccounts accounts;
   private WorkoutFixture workouts;
@@ -433,6 +438,174 @@ class StatsIntegrationTest {
       running(me, "period=day").andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
       mockMvc.perform(get("/api/stats/running?period=week")).andExpect(status().isUnauthorized());
     }
+  }
+
+  @Nested
+  class 記録した種目_A95 {
+
+    @Test
+    void 自分が記録した種目を_最後に記録した日つきで返す() throws Exception {
+      Account me = accounts.signup();
+      save(me, "2026-10-01").weightReps("ベンチプレス", 60, 10, 1).save();
+      save(me, "2026-11-10").weightReps("ベンチプレス", 60, 10, 1).reps("懸垂", 10, 1).save();
+
+      exercises(me)
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(2)))
+          .andExpect(jsonPath("$[0].exercise.name").value("ベンチプレス"))
+          .andExpect(jsonPath("$[0].exercise.recordType").value("weight_reps"))
+          .andExpect(jsonPath("$[0].exercise.custom").value(false))
+          .andExpect(jsonPath("$[0].lastPerformedOn").value("2026-11-10"))
+          .andExpect(jsonPath("$[1].exercise.name").value("懸垂"));
+      mockMvc.perform(get("/api/stats/exercises")).andExpect(status().isUnauthorized());
+    }
+
+    /** 1種目のときと5種目のときで、SQL の数が同じ（docs/test-plan.md 4.7） */
+    @Test
+    void 種目の数によらずSQLの数が同じ() throws Exception {
+      Account me = accounts.signup();
+      save(me, "2026-11-10").weightReps("ベンチプレス", 60, 10, 1).save();
+      int one = sqlCounter.count(() -> exercises(me).andExpect(jsonPath("$", hasSize(1))));
+
+      save(me, "2026-11-10")
+          .weightReps("スクワット", 100, 5, 1)
+          .weightReps("デッドリフト", 120, 5, 1)
+          .reps("懸垂", 10, 1)
+          .timeDistance("ランニング", 1800, 5.0)
+          .save();
+
+      assertThat(one).isPositive();
+      assertThat(sqlCounter.count(() -> exercises(me).andExpect(jsonPath("$", hasSize(5)))))
+          .isEqualTo(one);
+    }
+  }
+
+  @Nested
+  class 種目ごとの推移_A96 {
+
+    @Test
+    void 期間がなければ直近3か月の点と_全期間の自己ベストと推定1RMの最高() throws Exception {
+      Account me = accounts.signup();
+      long bench = exerciseId("ベンチプレス");
+      // 2026-11-11 の3か月前は 2026-08-11。その日は入り、前の日は入らない
+      long best = save(me, "2026-08-10").weightReps("ベンチプレス", 120, 1, 1).save();
+      long first = save(me, "2026-08-11").weightReps("ベンチプレス", 100, 10, 1).save();
+      long last = save(me, "2026-11-10").weightReps("ベンチプレス", 100, 5, 2).save();
+      // 他人の記録は入らない
+      save(accounts.signup(), "2026-11-10").weightReps("ベンチプレス", 200, 1, 1).save();
+
+      trend(me, bench, "")
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.exercise.id").value(bench))
+          .andExpect(jsonPath("$.exercise.name").value("ベンチプレス"))
+          .andExpect(jsonPath("$.personalBest.weightKg").value(120.0))
+          .andExpect(jsonPath("$.personalBest.performedOn").value("2026-08-10"))
+          .andExpect(jsonPath("$.personalBest.workoutId").value(best))
+          // 100 × 10 ＝ 133.333 が 120 × 1 より大きい
+          .andExpect(jsonPath("$.bestE1rm.e1rmKg").value(133.333))
+          .andExpect(jsonPath("$.bestE1rm.performedOn").value("2026-08-11"))
+          .andExpect(jsonPath("$.bestE1rm.workoutId").value(first))
+          .andExpect(jsonPath("$.points", hasSize(2)))
+          .andExpect(jsonPath("$.points[0].date").value("2026-08-11"))
+          .andExpect(jsonPath("$.points[1].date").value("2026-11-10"))
+          .andExpect(jsonPath("$.points[1].workoutId").value(last))
+          .andExpect(jsonPath("$.points[1].maxWeightKg").value(100.0))
+          .andExpect(jsonPath("$.points[1].maxE1rmKg").value(116.667))
+          .andExpect(jsonPath("$.points[1].maxWeightReps").value(5))
+          // 記録方式で使わない値は null
+          .andExpect(jsonPath("$.points[1].totalReps").value(nullValue()))
+          .andExpect(jsonPath("$.points[1].totalDurationSec").value(nullValue()))
+          .andExpect(jsonPath("$.points[1].paceSecPerKm").value(nullValue()));
+
+      trend(me, bench, "range=all").andExpect(jsonPath("$.points", hasSize(3)));
+      trend(me, bench, "range=1y").andExpect(jsonPath("$.points", hasSize(3)));
+      trend(me, bench, "range=3m").andExpect(jsonPath("$.points", hasSize(2)));
+    }
+
+    @Test
+    void ランニングは合計時間と合計距離とペース_重量の種目でなければ自己ベストはnull() throws Exception {
+      Account me = accounts.signup();
+      save(me, "2026-11-10").timeDistance("ランニング", 1800, 5.0).save();
+
+      trend(me, exerciseId("ランニング"), "")
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.personalBest").value(nullValue()))
+          .andExpect(jsonPath("$.bestE1rm").value(nullValue()))
+          .andExpect(jsonPath("$.points[0].totalDurationSec").value(1800))
+          .andExpect(jsonPath("$.points[0].totalDistanceKm").value(5.0))
+          .andExpect(jsonPath("$.points[0].paceSecPerKm").value(360))
+          .andExpect(jsonPath("$.points[0].maxWeightKg").value(nullValue()));
+    }
+
+    @Test
+    void 記録していない種目と自分の種目は200_他人の種目と存在しない種目は404() throws Exception {
+      Account me = accounts.signup();
+      Account sato = accounts.signup();
+      long mine = custom(me, "マイプレス");
+      long satos = custom(sato, "佐藤プレス");
+
+      trend(me, exerciseId("スクワット"), "")
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.points", hasSize(0)))
+          .andExpect(jsonPath("$.personalBest").value(nullValue()));
+      trend(me, mine, "")
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.exercise.custom").value(true));
+      for (long id : new long[] {satos, Long.MAX_VALUE}) {
+        trend(me, id, "")
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value("EXERCISE_NOT_FOUND"));
+      }
+    }
+
+    @Test
+    void 期間が正しくない_種目のIDが数でなければ400_ログインしていなければ401() throws Exception {
+      Account me = accounts.signup();
+      long bench = exerciseId("ベンチプレス");
+      for (String query : new String[] {"range=6m", "range=ALL"}) {
+        trend(me, bench, query)
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
+      }
+      mockMvc
+          .perform(get("/api/stats/exercises/abc").header(HttpHeaders.AUTHORIZATION, me.bearer()))
+          .andExpect(status().isBadRequest());
+      mockMvc.perform(get("/api/stats/exercises/" + bench)).andExpect(status().isUnauthorized());
+    }
+  }
+
+  private ResultActions exercises(Account account) throws Exception {
+    return mockMvc.perform(
+        get("/api/stats/exercises").header(HttpHeaders.AUTHORIZATION, account.bearer()));
+  }
+
+  private ResultActions trend(Account account, long exerciseId, String query) throws Exception {
+    return mockMvc.perform(
+        get("/api/stats/exercises/" + exerciseId + "?" + query)
+            .header(HttpHeaders.AUTHORIZATION, account.bearer()));
+  }
+
+  private long exerciseId(String name) {
+    return dsl.select(EXERCISES.ID)
+        .from(EXERCISES)
+        .where(EXERCISES.NAME.eq(name))
+        .and(EXERCISES.OWNER_ID.isNull())
+        .fetchSingle()
+        .value1();
+  }
+
+  private long custom(Account account, String name) {
+    return exerciseRepository
+        .insertCustom(
+            new NewExercise(
+                account.id(),
+                name,
+                name,
+                "chest",
+                "weight_reps",
+                new BigDecimal("6.0"),
+                OffsetDateTime.now(CLOCK)))
+        .getId();
   }
 
   private WorkoutFixture.Builder save(Account account, String performedOn) {

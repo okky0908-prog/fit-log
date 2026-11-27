@@ -738,6 +738,9 @@ ORDER BY w.performed_on;
 
 - 回数が1回のセットを Epley 式に入れると `重量 × 1.033…` になるが、F-84 の決まり（1回のセットは重量そのもの）に合わせて `CASE` で重量をそのまま使う
 - 回数のみ・時間・距離の種目は、同じ形で `SUM(s.reps)`・`MAX(s.reps)`、`SUM(s.duration_sec)`・`SUM(s.distance_km)` を実施日ごとに出す
+- 実装（`TrendRepository`）では、セットごとに `ROW_NUMBER() OVER (PARTITION BY w.performed_on ORDER BY …)` でその日の一番よいセットに印を付けてから実施日ごとにまとめ、その記録の ID（`workoutId`）と最大重量の回数（`maxWeightReps`）を同じ SQL で取る。並びは記録方式ごと（重量 × 回数：`s.reps >= 1 DESC, s.weight_kg DESC, s.reps DESC`、回数のみ：`s.reps DESC`、時間・距離：`s.distance_km DESC NULLS LAST, s.duration_sec DESC`）で、最後に `w.created_at DESC, s.id DESC`
+- 推定 1RM は `ROUND(重量 × (30 + 回数) / 30, 3)`（Epley 式を、割り算1回の形にしたもの）。記録方式で使わない値を `null` にするのと、ランニングのペースの計算は Java（`TrendRules.point`）で行う
+- 全期間の自己ベスト・推定 1RM の最高は、対象のセットを値の大きい順 → 実施日・投稿日時・セットの古い順に並べて1件取る（最初にその値を出した記録）
 
 ### 消費カロリー
 
