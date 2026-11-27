@@ -2,11 +2,17 @@ package com.okimoto.fitlog.stats.service;
 
 import com.okimoto.fitlog.common.calc.JapanTime;
 import com.okimoto.fitlog.stats.calc.DayTotal;
+import com.okimoto.fitlog.stats.calc.RunningRules;
+import com.okimoto.fitlog.stats.calc.RunningRules.MonthDistance;
+import com.okimoto.fitlog.stats.calc.RunningRules.Summary;
+import com.okimoto.fitlog.stats.calc.RunningRules.Unit;
 import com.okimoto.fitlog.stats.calc.StatsRules;
 import com.okimoto.fitlog.stats.calc.StatsRules.Daily;
 import com.okimoto.fitlog.stats.calc.StatsRules.Period;
 import com.okimoto.fitlog.stats.calc.StatsRules.Totals;
 import com.okimoto.fitlog.stats.repository.BodyPartCount;
+import com.okimoto.fitlog.stats.repository.RunRecord;
+import com.okimoto.fitlog.stats.repository.RunningRepository;
 import com.okimoto.fitlog.stats.repository.StatsRepository;
 import com.okimoto.fitlog.workout.calc.PersonalBest;
 import com.okimoto.fitlog.workout.repository.PersonalBestRepository;
@@ -20,7 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 週間・月間の集計（F-80・F-81、docs/api.md A-90・A-91）と、カレンダー（F-82、A-92・A-93）。本人の記録だけを、公開範囲に関係なく集計する。
+ * 週間・月間の集計（F-80・F-81、docs/api.md
+ * A-90・A-91）、カレンダー（F-82、A-92・A-93）、ランニングの集計（F-83、A-94）。本人の記録だけを、公開範囲に関係なく集計する。
  *
  * <p>消費カロリーの合計（F-86）は段階 5 で足す
  */
@@ -28,19 +35,60 @@ import org.springframework.transaction.annotation.Transactional;
 public class StatsService {
 
   private final StatsRepository repository;
+  private final RunningRepository runningRepository;
   private final WorkoutCardRepository workoutCardRepository;
   private final PersonalBestRepository personalBestRepository;
   private final Clock clock;
 
   public StatsService(
       StatsRepository repository,
+      RunningRepository runningRepository,
       WorkoutCardRepository workoutCardRepository,
       PersonalBestRepository personalBestRepository,
       Clock clock) {
     this.repository = repository;
+    this.runningRepository = runningRepository;
     this.workoutCardRepository = workoutCardRepository;
     this.personalBestRepository = personalBestRepository;
     this.clock = clock;
+  }
+
+  /**
+   * ランニングの集計。
+   *
+   * @param period 集計した期間
+   * @param summary その期間の集計値
+   * @param previous 前の期間の集計値
+   * @param bestPace 最速ペースの1回（1km 以上のセットから）。なければ null
+   * @param longestRun 最長距離の1回。なければ null
+   * @param monthly 年間なら12か月分の走行距離。それ以外は空
+   */
+  public record Running(
+      Period period,
+      Summary summary,
+      Summary previous,
+      RunRecord bestPace,
+      RunRecord longestRun,
+      List<MonthDistance> monthly) {}
+
+  /**
+   * A-94 ランニングの集計（F-83）。
+   *
+   * @param date 期間の中のどの日でもよい。null なら今日（日本時間）を含む期間
+   */
+  @Transactional(readOnly = true)
+  public Running running(long me, Unit unit, LocalDate date) {
+    Period period = RunningRules.periodOf(unit, date == null ? JapanTime.today(clock) : date);
+    return new Running(
+        period,
+        RunningRules.summary(runningRepository.totals(me, period)),
+        RunningRules.summary(runningRepository.totals(me, RunningRules.previous(unit, period))),
+        runningRepository.bestPace(me, period).orElse(null),
+        runningRepository.longestRun(me, period).orElse(null),
+        unit == Unit.YEAR
+            ? RunningRules.monthly(
+                period.from().getYear(), runningRepository.monthlyDistances(me, period))
+            : List.of());
   }
 
   /**

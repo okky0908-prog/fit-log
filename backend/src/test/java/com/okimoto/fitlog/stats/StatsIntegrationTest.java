@@ -16,6 +16,7 @@ import com.okimoto.fitlog.support.TestAccounts;
 import com.okimoto.fitlog.support.TestAccounts.Account;
 import com.okimoto.fitlog.support.TestcontainersConfiguration;
 import com.okimoto.fitlog.support.WorkoutFixture;
+import com.okimoto.fitlog.workout.calc.StoredSet;
 import com.okimoto.fitlog.workout.repository.WorkoutRepository;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -348,6 +349,92 @@ class StatsIntegrationTest {
     }
   }
 
+  @Nested
+  class ランニング_A94 {
+
+    @Test
+    void 月間の集計値と前の月の値_最速ペースと最長距離の記録() throws Exception {
+      Account me = accounts.signup();
+      Account sato = accounts.signup();
+      long fast = save(me, "2026-11-03").timeDistance("ランニング", 1500, 5.0).save();
+      long longest = save(me, "2026-11-08").timeDistance("ジョギング", 4200, 10.0).save();
+      // 距離のないセットは時間・回数に入る。ランニングでない種目は入らない
+      save(me, "2026-11-10")
+          .exercise("トレッドミル", List.of(new StoredSet(null, null, 600, null)))
+          .timeDistance("サイクリング", 3600, 30.0)
+          .save();
+      save(me, "2026-10-31").timeDistance("ランニング", 1800, 5.0).save();
+      save(sato, "2026-11-04").timeDistance("ランニング", 1000, 5.0).save();
+
+      running(me, "period=month&date=2026-11-12")
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.from").value("2026-11-01"))
+          .andExpect(jsonPath("$.to").value("2026-11-30"))
+          .andExpect(jsonPath("$.summary.distanceKm").value(15.0))
+          .andExpect(jsonPath("$.summary.durationSec").value(6300))
+          .andExpect(jsonPath("$.summary.runCount").value(3))
+          // (1500 + 4200) ÷ 15 = 380
+          .andExpect(jsonPath("$.summary.avgPaceSecPerKm").value(380))
+          .andExpect(jsonPath("$.previous.distanceKm").value(5.0))
+          .andExpect(jsonPath("$.previous.runCount").value(1))
+          .andExpect(jsonPath("$.previous.avgPaceSecPerKm").value(360))
+          .andExpect(jsonPath("$.bestPace.workoutId").value(fast))
+          .andExpect(jsonPath("$.bestPace.performedOn").value("2026-11-03"))
+          .andExpect(jsonPath("$.bestPace.distanceKm").value(5.0))
+          .andExpect(jsonPath("$.bestPace.durationSec").value(1500))
+          .andExpect(jsonPath("$.bestPace.paceSecPerKm").value(300))
+          .andExpect(jsonPath("$.longestRun.workoutId").value(longest))
+          .andExpect(jsonPath("$.longestRun.paceSecPerKm").value(420))
+          .andExpect(jsonPath("$.monthly", hasSize(0)));
+    }
+
+    @Test
+    void 年間は1月から12月の月ごとの走行距離も返す() throws Exception {
+      Account me = accounts.signup();
+      save(me, "2026-01-01").timeDistance("ランニング", 1800, 5.0).save();
+      save(me, "2026-11-11").timeDistance("ランニング", 1800, 5.0).save();
+      save(me, "2025-12-31").timeDistance("ランニング", 600, 2.0).save();
+
+      running(me, "period=year&date=2026-06-15")
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.from").value("2026-01-01"))
+          .andExpect(jsonPath("$.to").value("2026-12-31"))
+          .andExpect(jsonPath("$.summary.distanceKm").value(10.0))
+          .andExpect(jsonPath("$.previous.distanceKm").value(2.0))
+          .andExpect(jsonPath("$.monthly", hasSize(12)))
+          .andExpect(jsonPath("$.monthly[0].month").value("2026-01"))
+          .andExpect(jsonPath("$.monthly[0].distanceKm").value(5.0))
+          .andExpect(jsonPath("$.monthly[1].distanceKm").value(0.0))
+          .andExpect(jsonPath("$.monthly[10].month").value("2026-11"))
+          .andExpect(jsonPath("$.monthly[10].distanceKm").value(5.0));
+    }
+
+    @Test
+    void 記録がなければ0で_ペースと最速ペースと最長距離はnull() throws Exception {
+      Account me = accounts.signup();
+
+      running(me, "period=week")
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.from").value("2026-11-09"))
+          .andExpect(jsonPath("$.summary.distanceKm").value(0.0))
+          .andExpect(jsonPath("$.summary.runCount").value(0))
+          .andExpect(jsonPath("$.summary.avgPaceSecPerKm").value(nullValue()))
+          .andExpect(jsonPath("$.bestPace").value(nullValue()))
+          .andExpect(jsonPath("$.longestRun").value(nullValue()));
+    }
+
+    @Test
+    void 期間の単位がない_正しくない_日付が正しくなければ400_ログインしていなければ401() throws Exception {
+      Account me = accounts.signup();
+      for (String query :
+          new String[] {"", "period=day", "period=WEEK", "period=week&date=2026-13-01"}) {
+        running(me, query).andExpect(status().isBadRequest());
+      }
+      running(me, "period=day").andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
+      mockMvc.perform(get("/api/stats/running?period=week")).andExpect(status().isUnauthorized());
+    }
+  }
+
   private WorkoutFixture.Builder save(Account account, String performedOn) {
     return workouts.of(account.id()).performedOn(LocalDate.parse(performedOn));
   }
@@ -355,6 +442,11 @@ class StatsIntegrationTest {
   private ResultActions weekly(Account account, String query) throws Exception {
     return mockMvc.perform(
         get("/api/stats/weekly?" + query).header(HttpHeaders.AUTHORIZATION, account.bearer()));
+  }
+
+  private ResultActions running(Account account, String query) throws Exception {
+    return mockMvc.perform(
+        get("/api/stats/running?" + query).header(HttpHeaders.AUTHORIZATION, account.bearer()));
   }
 
   private ResultActions calendar(Account account, String query) throws Exception {
