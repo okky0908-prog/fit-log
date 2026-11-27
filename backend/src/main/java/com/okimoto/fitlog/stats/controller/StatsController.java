@@ -1,0 +1,111 @@
+package com.okimoto.fitlog.stats.controller;
+
+import com.okimoto.fitlog.auth.config.AuthenticatedUser;
+import com.okimoto.fitlog.stats.calc.StatsRules;
+import com.okimoto.fitlog.stats.calc.StatsRules.Daily;
+import com.okimoto.fitlog.stats.calc.StatsRules.Totals;
+import com.okimoto.fitlog.stats.repository.BodyPartCount;
+import com.okimoto.fitlog.stats.service.StatsService;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+/** 週間・月間の集計（docs/api.md A-90・A-91）。本人の集計だけを返す */
+@RestController
+@RequestMapping("/api/stats")
+public class StatsController {
+
+  private final StatsService statsService;
+
+  public StatsController(StatsService statsService) {
+    this.statsService = statsService;
+  }
+
+  /**
+   * 期間の集計値（kg・km・秒）。
+   *
+   * <p>まだ作っていない機能の項目は、決まった値を返す：{@code caloriesKcal} は null、{@code caloriesExcludedWorkoutCount} は
+   * 0（段階 5）
+   *
+   * @param trainingDays トレーニング日数
+   * @param totalVolumeKg 総挙上量
+   * @param totalDurationSec 運動時間
+   * @param totalDistanceKm 距離
+   * @param caloriesKcal 消費カロリーの合計。計算できた記録がなければ null
+   * @param caloriesExcludedWorkoutCount 消費カロリーを計算できなかった記録の数
+   */
+  public record Summary(
+      int trainingDays,
+      BigDecimal totalVolumeKg,
+      int totalDurationSec,
+      BigDecimal totalDistanceKm,
+      Integer caloriesKcal,
+      int caloriesExcludedWorkoutCount) {
+
+    static Summary of(Totals totals) {
+      return new Summary(
+          totals.trainingDays(),
+          totals.totalVolumeKg(),
+          totals.totalDurationSec(),
+          totals.totalDistanceKm(),
+          null,
+          0);
+    }
+  }
+
+  /** A-90 の応答 */
+  public record WeeklyResponse(
+      LocalDate from,
+      LocalDate to,
+      Summary summary,
+      Summary previous,
+      List<Daily> daily,
+      List<BodyPartCount> bodyParts) {}
+
+  /** A-91 の応答 */
+  public record MonthlyResponse(
+      LocalDate from,
+      LocalDate to,
+      Summary summary,
+      Summary previous,
+      List<StatsRules.Weekly> weekly,
+      List<BodyPartCount> bodyParts) {}
+
+  /** A-90 週間の集計。date は週の中のどの日でもよい（YYYY-MM-DD）。なければ今週 */
+  @GetMapping("/weekly")
+  public WeeklyResponse weekly(
+      @AuthenticationPrincipal AuthenticatedUser user,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate date) {
+    StatsService.Weekly stats = statsService.weekly(user.id(), date);
+    return new WeeklyResponse(
+        stats.period().from(),
+        stats.period().to(),
+        Summary.of(stats.summary()),
+        Summary.of(stats.previous()),
+        stats.daily(),
+        stats.bodyParts());
+  }
+
+  /** A-91 月間の集計。month は YYYY-MM。なければ今月 */
+  @GetMapping("/monthly")
+  public MonthlyResponse monthly(
+      @AuthenticationPrincipal AuthenticatedUser user,
+      @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM") YearMonth month) {
+    StatsService.Monthly stats = statsService.monthly(user.id(), month);
+    return new MonthlyResponse(
+        stats.period().from(),
+        stats.period().to(),
+        Summary.of(stats.summary()),
+        Summary.of(stats.previous()),
+        stats.weekly(),
+        stats.bodyParts());
+  }
+}

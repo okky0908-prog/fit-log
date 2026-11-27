@@ -694,6 +694,7 @@ WHERE w.user_id = :me
 - 曜日ごと・週ごとのグラフは、`generate_series(:from, :to, interval '1 day')` で日付の並びを作って `LEFT JOIN` し、記録のない日も 0 で返す
 - 月間の週ごとの推移は `date_trunc('week', w.performed_on)` で月曜始まりの週にまとめる（月をまたぐ週は、`WHERE` でその月の日だけに絞ってからまとめるので、その月の日だけを数える）
 - 前の期間との差は、同じ SQL を前の期間で実行して Java で引き算する
+- 実装（`StatsRepository`・`StatsRules`）では、SQL は記録のある日ごとの合計（`GROUP BY w.performed_on`）だけを返す。記録のない日を 0 で埋める・週にまとめる・期間の合計を出すのは Java（計算の層）で行う。1回の集計の SQL は、その期間の日ごと・前の期間の日ごと・部位別の3本で、記録の数によらない。前の期間との差の引き算は画面で行う（[API 設計の集計](./api.md#集計)）
 
 ### ランニングの集計
 
