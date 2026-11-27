@@ -1,19 +1,20 @@
 package com.okimoto.fitlog.workout.controller;
 
 import com.okimoto.fitlog.common.calc.JapanTime;
+import com.okimoto.fitlog.workout.calc.PersonalBest;
+import com.okimoto.fitlog.workout.calc.PersonalBestRules;
 import com.okimoto.fitlog.workout.calc.StoredSet;
 import com.okimoto.fitlog.workout.repository.WorkoutDetail;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
 /**
  * 記録の詳細（docs/api.md「Workout」）。他人にも返す形なので、項目を足すときは本人以外に出してよいかを考える（docs/test-plan.md 4.2
  * の許可リストのテストが落ちる）。
- *
- * <p>まだ作っていない機能の項目は、決まった値を返す：{@code personalBest} は false（段階 2）
  *
  * @param id 記録
  * @param author 投稿者
@@ -71,11 +72,13 @@ public record WorkoutResponse(
   public record Image(long id, String url, int sortOrder) {}
 
   /**
+   * @param personalBests 自己ベストを更新した種目（{@code PersonalBestRepository}）
    * @param urlOf 画像の S3 のキーから、署名付き URL を作る（閲覧を許可したあとに呼ぶ）
    * @param iconUrlOf アイコンの S3 のキーから、署名付き URL を作る（なければ null）
    */
   static WorkoutResponse from(
       WorkoutDetail detail,
+      List<PersonalBest> personalBests,
       long me,
       Function<String, String> urlOf,
       Function<String, String> iconUrlOf) {
@@ -92,7 +95,7 @@ public record WorkoutResponse(
         detail.body(),
         detail.durationMin() == null ? null : detail.durationMin().intValue(),
         detail.visibility(),
-        detail.exercises().stream().map(WorkoutResponse::exercise).toList(),
+        exercises(detail, personalBests),
         detail.images().stream()
             .map(image -> new Image(image.id(), urlOf.apply(image.imageKey()), image.sortOrder()))
             .toList(),
@@ -102,18 +105,39 @@ public record WorkoutResponse(
         detail.userId() == me);
   }
 
-  private static Exercise exercise(WorkoutDetail.Exercise exercise) {
-    return new Exercise(
-        exercise.exerciseId(),
-        exercise.name(),
-        exercise.bodyPart(),
-        exercise.recordType(),
-        exercise.isRunning(),
-        false,
-        exercise.sets().stream().map(WorkoutResponse::set).toList());
+  /** 自己ベストを更新した種目と、その中で自己ベストを出したセットに印を付ける */
+  private static List<Exercise> exercises(WorkoutDetail detail, List<PersonalBest> personalBests) {
+    List<WorkoutDetail.Exercise> exercises = detail.exercises();
+    java.util.Set<Integer> marked =
+        PersonalBestRules.markedExercises(
+            detail.id(),
+            exercises.stream()
+                .map(exercise -> PersonalBestRules.entryOf(exercise.exerciseId(), exercise.sets()))
+                .toList(),
+            personalBests);
+    List<Exercise> result = new ArrayList<>();
+    for (int i = 0; i < exercises.size(); i++) {
+      WorkoutDetail.Exercise exercise = exercises.get(i);
+      boolean personalBest = marked.contains(i);
+      int bestSet = personalBest ? PersonalBestRules.bestSet(exercise.sets()) : -1;
+      List<Set> sets = new ArrayList<>();
+      for (int j = 0; j < exercise.sets().size(); j++) {
+        sets.add(set(exercise.sets().get(j), j == bestSet));
+      }
+      result.add(
+          new Exercise(
+              exercise.exerciseId(),
+              exercise.name(),
+              exercise.bodyPart(),
+              exercise.recordType(),
+              exercise.isRunning(),
+              personalBest,
+              sets));
+    }
+    return result;
   }
 
-  private static Set set(StoredSet set) {
-    return new Set(set.weightKg(), set.reps(), set.durationSec(), set.distanceKm(), false);
+  private static Set set(StoredSet set, boolean personalBest) {
+    return new Set(set.weightKg(), set.reps(), set.durationSec(), set.distanceKm(), personalBest);
   }
 }

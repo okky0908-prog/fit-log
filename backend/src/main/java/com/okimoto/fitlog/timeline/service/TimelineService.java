@@ -5,6 +5,8 @@ import com.okimoto.fitlog.common.controller.ApiException;
 import com.okimoto.fitlog.common.controller.ErrorCode;
 import com.okimoto.fitlog.common.service.CursorParams;
 import com.okimoto.fitlog.user.repository.UserRepository;
+import com.okimoto.fitlog.workout.calc.PersonalBest;
+import com.okimoto.fitlog.workout.repository.PersonalBestRepository;
 import com.okimoto.fitlog.workout.repository.WorkoutCardRepository;
 import com.okimoto.fitlog.workout.repository.WorkoutCardRow;
 import java.util.List;
@@ -24,19 +26,26 @@ public class TimelineService {
 
   private final WorkoutCardRepository repository;
   private final UserRepository userRepository;
+  private final PersonalBestRepository personalBestRepository;
 
-  public TimelineService(WorkoutCardRepository repository, UserRepository userRepository) {
+  public TimelineService(
+      WorkoutCardRepository repository,
+      UserRepository userRepository,
+      PersonalBestRepository personalBestRepository) {
     this.repository = repository;
     this.userRepository = userRepository;
+    this.personalBestRepository = personalBestRepository;
   }
 
   /**
    * 一覧の1ページと、続きのカーソル。
    *
    * @param items 一覧の記録
+   * @param personalBests 一覧の記録のうち、自己ベストを更新した種目（1ページ分を1回の SQL で求める）
    * @param nextCursor 続きのカーソル。続きがなければ null
    */
-  public record Page(List<WorkoutCardRow> items, String nextCursor) {}
+  public record Page(
+      List<WorkoutCardRow> items, List<PersonalBest> personalBests, String nextCursor) {}
 
   /**
    * A-50・A-51 タイムライン。
@@ -71,12 +80,12 @@ public class TimelineService {
         last -> Cursor.encodeDated(last.performedOn(), last.createdAt(), last.id()));
   }
 
-  /** 1件多く取った結果から、1ページと続きのカーソルを作る */
-  private static Page page(List<WorkoutCardRow> rows, Function<WorkoutCardRow, String> cursorOf) {
-    if (rows.size() <= PAGE_SIZE) {
-      return new Page(rows, null);
-    }
-    List<WorkoutCardRow> items = rows.subList(0, PAGE_SIZE);
-    return new Page(items, cursorOf.apply(items.getLast()));
+  /** 1件多く取った結果から、1ページと自己ベスト更新の印、続きのカーソルを作る */
+  private Page page(List<WorkoutCardRow> rows, Function<WorkoutCardRow, String> cursorOf) {
+    boolean hasNext = rows.size() > PAGE_SIZE;
+    List<WorkoutCardRow> items = hasNext ? rows.subList(0, PAGE_SIZE) : rows;
+    List<PersonalBest> personalBests =
+        personalBestRepository.findUpdated(items.stream().map(WorkoutCardRow::id).toList());
+    return new Page(items, personalBests, hasNext ? cursorOf.apply(items.getLast()) : null);
   }
 }

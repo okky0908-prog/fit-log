@@ -2,6 +2,7 @@ package com.okimoto.fitlog.workout;
 
 import static com.okimoto.fitlog.jooq.Tables.WORKOUTS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -596,6 +597,103 @@ class WorkoutIntegrationTest {
     void IDが数でなければ400_ログインしていなければ401() throws Exception {
       remove(accounts.signup(), "abc").andExpect(status().isBadRequest());
       mockMvc.perform(delete("/api/workouts/1")).andExpect(status().isUnauthorized());
+    }
+  }
+
+  /**
+   * 自己ベスト更新の印（F-85）。どの記録に付くかのケースは PersonalBestRepositoryTest、どの種目・セットに付けるかは PersonalBestRulesTest
+   */
+  @Nested
+  class 自己ベストの印 {
+
+    @Test
+    void 作成の応答と詳細で_更新した種目と自己ベストを出したセットに付ける() throws Exception {
+      Account me = accounts.signup();
+      fixture.of(me.id()).performedOn(yesterday()).weightReps("ベンチプレス", 60, 10, 1).save();
+      Map<String, Object> data = valid();
+      data.put(
+          "exercises",
+          List.of(
+              exercise(BENCH_PRESS, set(60, 10), set(70, 5), set(70, 3)),
+              exercise(PUSH_UP, reps(20))));
+
+      ResultActions created =
+          create(me, data)
+              .andExpect(status().isCreated())
+              .andExpect(jsonPath("$.exercises[0].personalBest").value(true))
+              .andExpect(
+                  jsonPath("$.exercises[0].sets[*].personalBest")
+                      .value(contains(false, true, false)))
+              .andExpect(jsonPath("$.exercises[1].personalBest").value(false))
+              .andExpect(jsonPath("$.exercises[1].sets[0].personalBest").value(false));
+
+      // 他人が見る詳細でも同じ
+      detail(accounts.signup(), idOf(created))
+          .andExpect(jsonPath("$.exercises[0].personalBest").value(true))
+          .andExpect(
+              jsonPath("$.exercises[0].sets[*].personalBest").value(contains(false, true, false)))
+          .andExpect(jsonPath("$.exercises[1].personalBest").value(false));
+    }
+
+    @Test
+    void 同じ種目が2回なら_最大重量を出した方に付ける() throws Exception {
+      Account me = accounts.signup();
+      fixture.of(me.id()).performedOn(yesterday()).weightReps("ベンチプレス", 60, 10, 1).save();
+      Map<String, Object> data = valid();
+      data.put(
+          "exercises",
+          List.of(exercise(BENCH_PRESS, set(65, 5)), exercise(BENCH_PRESS, set(70, 5))));
+
+      create(me, data)
+          .andExpect(jsonPath("$.exercises[0].personalBest").value(false))
+          .andExpect(jsonPath("$.exercises[0].sets[0].personalBest").value(false))
+          .andExpect(jsonPath("$.exercises[1].personalBest").value(true))
+          .andExpect(jsonPath("$.exercises[1].sets[0].personalBest").value(true));
+    }
+
+    @Test
+    void 編集で前の最大を超えると_編集の応答に付く() throws Exception {
+      Account me = accounts.signup();
+      fixture.of(me.id()).performedOn(yesterday()).weightReps("ベンチプレス", 60, 10, 1).save();
+      long id =
+          fixture
+              .of(me.id())
+              .performedOn(JapanTime.today(clock))
+              .weightReps("ベンチプレス", 50, 10, 1)
+              .save();
+      detail(me, id).andExpect(jsonPath("$.exercises[0].personalBest").value(false));
+      Map<String, Object> data = valid();
+      data.put("exercises", List.of(exercise(BENCH_PRESS, set(61, 10))));
+
+      edit(me, id, data)
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.exercises[0].personalBest").value(true))
+          .andExpect(jsonPath("$.exercises[0].sets[0].personalBest").value(true));
+    }
+
+    @Test
+    void 他人が見ても_投稿者の自分のみの記録と比べる() throws Exception {
+      Account author = accounts.signup();
+      fixture
+          .of(author.id())
+          .performedOn(yesterday())
+          .visibility("private")
+          .weightReps("ベンチプレス", 80, 5, 1)
+          .save();
+      long id =
+          fixture
+              .of(author.id())
+              .performedOn(JapanTime.today(clock))
+              .weightReps("ベンチプレス", 70, 5, 1)
+              .save();
+
+      detail(accounts.signup(), id)
+          .andExpect(jsonPath("$.exercises[0].personalBest").value(false))
+          .andExpect(jsonPath("$.exercises[0].sets[0].personalBest").value(false));
+    }
+
+    private java.time.LocalDate yesterday() {
+      return JapanTime.today(clock).minusDays(1);
     }
   }
 

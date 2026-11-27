@@ -3,17 +3,19 @@ package com.okimoto.fitlog.workout.controller;
 import com.okimoto.fitlog.common.calc.JapanTime;
 import com.okimoto.fitlog.workout.calc.ExerciseSummary;
 import com.okimoto.fitlog.workout.calc.ExerciseSummaryRules;
+import com.okimoto.fitlog.workout.calc.PersonalBest;
+import com.okimoto.fitlog.workout.calc.PersonalBestRules;
 import com.okimoto.fitlog.workout.repository.WorkoutCardRow;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 
 /**
  * 記録の一覧の1件（docs/api.md「WorkoutCard」。A-50・A-51・A-81、のちに A-54・A-93）。投稿カードに出すものだけを返す。
  * 他人にも返す形なので、項目を足すときは本人以外に出してよいかを考える。
- *
- * <p>まだ作っていない機能の項目は、決まった値を返す：種目の {@code personalBest} は false（段階 2）
  *
  * @param id 記録
  * @param author 投稿者
@@ -47,11 +49,13 @@ public record WorkoutCardResponse(
     boolean mine) {
 
   /**
+   * @param personalBests 自己ベストを更新した種目（ほかの記録の分が入っていてもよい）
    * @param urlOf 画像の S3 のキーから、署名付き URL を作る（閲覧の条件で絞った一覧にだけ使う）
    * @param iconUrlOf アイコンの S3 のキーから、署名付き URL を作る（なければ null）
    */
   public static WorkoutCardResponse from(
       WorkoutCardRow row,
+      List<PersonalBest> personalBests,
       long me,
       Function<String, String> urlOf,
       Function<String, String> iconUrlOf) {
@@ -67,7 +71,7 @@ public record WorkoutCardResponse(
         JapanTime.of(row.editedAt()),
         row.body(),
         row.visibility(),
-        row.exercises().stream().map(ExerciseSummaryRules::summarize).toList(),
+        summaries(row, personalBests),
         row.otherExerciseCount(),
         row.images().stream()
             .map(image ->
@@ -78,5 +82,18 @@ public record WorkoutCardResponse(
         row.likedByMe(),
         row.commentCount(),
         row.userId() == me);
+  }
+
+  /** 先頭5種目の要約。自己ベストを更新した種目に印を付ける */
+  private static List<ExerciseSummary> summaries(
+      WorkoutCardRow row, List<PersonalBest> personalBests) {
+    Set<Integer> marked =
+        PersonalBestRules.markedExercises(
+            row.id(),
+            row.exercises().stream().map(PersonalBestRules::entryOf).toList(),
+            personalBests);
+    return IntStream.range(0, row.exercises().size())
+        .mapToObj(i -> ExerciseSummaryRules.summarize(row.exercises().get(i), marked.contains(i)))
+        .toList();
   }
 }

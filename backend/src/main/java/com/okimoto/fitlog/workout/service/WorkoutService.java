@@ -9,6 +9,7 @@ import com.okimoto.fitlog.user.repository.UserRepository;
 import com.okimoto.fitlog.workout.calc.SetRules;
 import com.okimoto.fitlog.workout.calc.WorkoutRules;
 import com.okimoto.fitlog.workout.repository.NewWorkout;
+import com.okimoto.fitlog.workout.repository.PersonalBestRepository;
 import com.okimoto.fitlog.workout.repository.WorkoutDetail;
 import com.okimoto.fitlog.workout.repository.WorkoutEdit;
 import com.okimoto.fitlog.workout.repository.WorkoutRepository;
@@ -26,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class WorkoutService {
 
   private final WorkoutRepository workoutRepository;
+  private final PersonalBestRepository personalBestRepository;
   private final WorkoutInputValidator validator;
   private final UserRepository userRepository;
   private final ImageStorage imageStorage;
@@ -33,11 +35,13 @@ public class WorkoutService {
 
   public WorkoutService(
       WorkoutRepository workoutRepository,
+      PersonalBestRepository personalBestRepository,
       WorkoutInputValidator validator,
       UserRepository userRepository,
       ImageStorage imageStorage,
       Clock clock) {
     this.workoutRepository = workoutRepository;
+    this.personalBestRepository = personalBestRepository;
     this.validator = validator;
     this.userRepository = userRepository;
     this.imageStorage = imageStorage;
@@ -53,10 +57,10 @@ public class WorkoutService {
    * <p>ハッシュタグの保存（段階 4）・確定後の目標の判定（段階 3）は、それぞれを作るときに足す
    *
    * @param images 画像の中身（選んだ順）
-   * @return 作った記録の詳細
+   * @return 作った記録の詳細と、自己ベスト更新の印
    */
   @Transactional
-  public WorkoutDetail create(long me, WorkoutInput input, List<byte[]> images) {
+  public MarkedWorkout create(long me, WorkoutInput input, List<byte[]> images) {
     lockUser(me);
     List<FieldError> errors = new ArrayList<>(validator.validate(me, input));
     errors.addAll(validator.validateImages(images, 0));
@@ -77,12 +81,14 @@ public class WorkoutService {
     return find(me, id);
   }
 
-  /** A-21 記録の詳細。見てはいけない記録は、ない記録と同じ 404 */
+  /** A-21 記録の詳細と、自己ベスト更新の印。見てはいけない記録は、ない記録と同じ 404 */
   @Transactional(readOnly = true)
-  public WorkoutDetail find(long me, long id) {
-    return workoutRepository
-        .findVisible(id, me)
-        .orElseThrow(() -> new ApiException(ErrorCode.WORKOUT_NOT_FOUND));
+  public MarkedWorkout find(long me, long id) {
+    WorkoutDetail detail =
+        workoutRepository
+            .findVisible(id, me)
+            .orElseThrow(() -> new ApiException(ErrorCode.WORKOUT_NOT_FOUND));
+    return new MarkedWorkout(detail, personalBestRepository.findUpdated(List.of(id)));
   }
 
   /**
@@ -93,10 +99,10 @@ public class WorkoutService {
    * <p>画像は、残す画像（{@code keepImageIds} の順）のあとに新しい画像を並べる。外した画像は、保存の確定後に S3 から消す（取り消されたら消さない）
    *
    * @param images 新しい画像の中身（選んだ順）
-   * @return 編集したあとの記録の詳細
+   * @return 編集したあとの記録の詳細と、自己ベスト更新の印
    */
   @Transactional
-  public WorkoutDetail update(long me, long id, WorkoutInput input, List<byte[]> images) {
+  public MarkedWorkout update(long me, long id, WorkoutInput input, List<byte[]> images) {
     lockUser(me);
     requireOwn(me, id);
     List<WorkoutDetail.Image> current = workoutRepository.findImages(id);

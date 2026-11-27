@@ -23,7 +23,8 @@ class ExerciseSummaryRulesTest {
       ExerciseSummary summary =
           ExerciseSummaryRules.summarize(
               new ExerciseAggregate(
-                  BENCH_PRESS, "ベンチプレス", "weight_reps", 3, true, kg("60.000"), 10, 30, null, null));
+                  BENCH_PRESS, "ベンチプレス", "weight_reps", 3, true, kg("60.000"), 10, 30, null, null),
+              false);
 
       assertThat(summary)
           .isEqualTo(
@@ -47,22 +48,25 @@ class ExerciseSummaryRulesTest {
       ExerciseSummary summary =
           ExerciseSummaryRules.summarize(
               new ExerciseAggregate(
-                  BENCH_PRESS,
-                  "ベンチプレス",
-                  "weight_reps",
-                  3,
-                  false,
-                  kg("100.000"),
-                  5,
-                  23,
-                  null,
-                  null));
+                  BENCH_PRESS, "ベンチプレス", "weight_reps", 3, false, kg("100.000"), 5, 23, null, null),
+              false);
 
       assertThat(summary.uniform()).isFalse();
       assertThat(summary.weightKg()).isEqualTo(kg("100.000"));
       assertThat(summary.reps()).isEqualTo(5);
       assertThat(summary.totalReps()).isNull();
     }
+  }
+
+  @Test
+  void 自己ベスト更新の印は_渡したとおりに返す() {
+    ExerciseSummary summary =
+        ExerciseSummaryRules.summarize(
+            new ExerciseAggregate(
+                BENCH_PRESS, "ベンチプレス", "weight_reps", 1, true, kg("70.000"), 5, 5, null, null),
+            true);
+
+    assertThat(summary.personalBest()).isTrue();
   }
 
   @Nested
@@ -72,7 +76,7 @@ class ExerciseSummaryRulesTest {
     void 全セットが同じなら_その回数() {
       ExerciseSummary summary =
           ExerciseSummaryRules.summarize(
-              new ExerciseAggregate(8L, "腕立て伏せ", "reps", 3, true, null, 20, 60, null, null));
+              new ExerciseAggregate(8L, "腕立て伏せ", "reps", 3, true, null, 20, 60, null, null), false);
 
       assertThat(summary.uniform()).isTrue();
       assertThat(summary.reps()).isEqualTo(20);
@@ -84,7 +88,8 @@ class ExerciseSummaryRulesTest {
     void 値が違えば_回数の合計() {
       ExerciseSummary summary =
           ExerciseSummaryRules.summarize(
-              new ExerciseAggregate(8L, "腕立て伏せ", "reps", 3, false, null, 20, 55, null, null));
+              new ExerciseAggregate(8L, "腕立て伏せ", "reps", 3, false, null, 20, 55, null, null),
+              false);
 
       assertThat(summary.uniform()).isFalse();
       assertThat(summary.totalReps()).isEqualTo(55);
@@ -155,7 +160,8 @@ class ExerciseSummaryRulesTest {
               null,
               null,
               durationSec,
-              distanceKm));
+              distanceKm),
+          false);
     }
   }
 

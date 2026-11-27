@@ -12,12 +12,16 @@ public final class ExerciseSummaryRules {
 
   private ExerciseSummaryRules() {}
 
-  public static ExerciseSummary summarize(ExerciseAggregate aggregate) {
+  /**
+   * @param personalBest 自己ベストを更新した種目か（{@link PersonalBestRules#markedExercises}）
+   */
+  public static ExerciseSummary summarize(ExerciseAggregate aggregate, boolean personalBest) {
     return switch (aggregate.recordType()) {
       case "weight_reps" ->
           // 全セットが同じなら、最大のセットはそのセットと同じ値になる
           summary(
               aggregate,
+              personalBest,
               aggregate.uniform(),
               aggregate.bestWeightKg(),
               aggregate.bestReps(),
@@ -27,11 +31,22 @@ public final class ExerciseSummaryRules {
               null);
       case "reps" ->
           aggregate.uniform()
-              ? summary(aggregate, true, null, aggregate.bestReps(), null, null, null, null)
-              : summary(aggregate, false, null, null, aggregate.totalReps(), null, null, null);
+              ? summary(
+                  aggregate, personalBest, true, null, aggregate.bestReps(), null, null, null, null)
+              : summary(
+                  aggregate,
+                  personalBest,
+                  false,
+                  null,
+                  null,
+                  aggregate.totalReps(),
+                  null,
+                  null,
+                  null);
       default ->
           summary(
               aggregate,
+              personalBest,
               null,
               null,
               null,
@@ -54,6 +69,7 @@ public final class ExerciseSummaryRules {
 
   private static ExerciseSummary summary(
       ExerciseAggregate aggregate,
+      boolean personalBest,
       Boolean uniform,
       BigDecimal weightKg,
       Integer reps,
@@ -65,7 +81,7 @@ public final class ExerciseSummaryRules {
         aggregate.exerciseId(),
         aggregate.name(),
         aggregate.recordType(),
-        false,
+        personalBest,
         aggregate.setCount(),
         uniform,
         weightKg,
