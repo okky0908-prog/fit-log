@@ -369,3 +369,38 @@ export interface RunningStats {
   /** 年間のときだけ、1〜12月の走行距離（記録のない月も 0）。それ以外は空 */
   monthly: { month: string; distanceKm: number }[]
 }
+
+/** A-95 自分が記録した種目（部位の順） */
+export interface UsedExercise {
+  exercise: Exercise
+  lastPerformedOn: string
+}
+
+/** A-96 の期間 */
+export type TrendRange = '3m' | '1y' | 'all'
+
+/** A-96 の実施日ごとの点。記録方式で使わない値は null */
+export interface TrendPoint {
+  date: string
+  /** その日の一番よい値を出した記録 */
+  workoutId: number
+  maxWeightKg: number | null
+  maxE1rmKg: number | null
+  maxWeightReps: number | null
+  totalReps: number | null
+  maxReps: number | null
+  totalDurationSec: number | null
+  totalDistanceKm: number | null
+  paceSecPerKm: number | null
+}
+
+/** A-96 種目ごとの推移 */
+export interface ExerciseTrend {
+  exercise: Exercise
+  /** 全期間の自己ベスト。重量 × 回数の種目でなければ・なければ null */
+  personalBest: { weightKg: number; performedOn: string; workoutId: number } | null
+  /** 全期間の推定 1RM の最高。重量 × 回数の種目でなければ・なければ null */
+  bestE1rm: { e1rmKg: number; performedOn: string; workoutId: number } | null
+  /** 実施日の古い順 */
+  points: TrendPoint[]
+}

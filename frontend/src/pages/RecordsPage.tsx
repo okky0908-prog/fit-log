@@ -66,7 +66,7 @@ interface PeriodStats {
  *
  * カレンダーの月と記録を出す日は `?cal=`・`?day=` に入れる（週間・月間の期間とは別に動かせる）。
  *
- * 消費カロリー（段階 5）、目標（段階 3）、種目へのリンク（4-2）は、それぞれの PR で足す
+ * 消費カロリー（段階 5）、目標（段階 3）は、それぞれの段階で足す
  */
 export function RecordsPage({ kind }: { kind: RecordsKind }) {
   const { user } = useAuth()
@@ -102,9 +102,14 @@ export function RecordsPage({ kind }: { kind: RecordsKind }) {
     <>
       <div className={styles.head}>
         <h1 className={styles.title}>記録</h1>
-        <Link to="/records/running" className={styles.headLink}>
-          ランニング ›
-        </Link>
+        <div className={styles.headLinks}>
+          <Link to="/records/running" className={styles.headLink}>
+            ランニング ›
+          </Link>
+          <Link to="/records/exercises" className={styles.headLink}>
+            種目 ›
+          </Link>
+        </div>
       </div>
       <div role="tablist" className={styles.tabs}>
         {TABS.map((tab) => (

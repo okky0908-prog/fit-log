@@ -16,6 +16,11 @@
   margin: 0;
 }
 
+.headLinks {
+  display: flex;
+  gap: 16px;
+}
+
 .headLink {
   font-weight: 600;
 }
@@ -244,4 +249,72 @@
 
 .note {
   margin: 2px 0 0;
+}
+
+/* S-22 種目ごとの推移 */
+.switchPanel {
+  flex-basis: 100%;
+  padding-top: 8px;
+}
+
+.bestList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.bestItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.bestItem dt {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.bestItem dd {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.trendRows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trendRows li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.trendRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  min-height: 44px;
+  padding: 10px 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.trendRow:hover span:last-child {
+  text-decoration: underline;
+}
+
+/* 押すと移ることを示す「›」。読み上げの名前に入らないよう、CSS で出す */
+.trendRow::after {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  content: '›';
+}
+
+.trendDate {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
 }

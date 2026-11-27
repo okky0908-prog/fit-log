@@ -199,4 +199,9 @@ describe('グラフの横軸の目盛り', () => {
     expect(axisLabel('月')).toBe('月')
     expect(axisLabel('火')).toBe('火')
   })
+
+  test('日付（推移のグラフ）は年と、月・日の前の 0 を省く', () => {
+    expect(axisLabel('2026/11/14')).toBe('11/14')
+    expect(axisLabel('2025/01/05')).toBe('1/5')
+  })
 })

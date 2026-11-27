@@ -5,7 +5,8 @@ import {
   formatDistance,
   formatDuration,
   formatPace,
-  KM_PER_MILE,
+  formatPaceValue,
+  paceSecondsPer,
 } from '../format/units'
 import { addDays, addMonths, isDate, monthLabel, weekLabel, weekStartOf } from './period'
 import { type ChartPoint, type Diff, formatDiff } from './stats'
@@ -122,11 +123,11 @@ export function runningSummaryItems(
     },
     {
       label: '平均ペース',
-      value: pace === null ? '—' : paceText(perUnit(pace, unit), unit),
+      value: pace === null ? '—' : formatPaceValue(paceSecondsPer(pace, unit), unit),
       diff:
         pace === null || previousPace === null
           ? null
-          : durationDiff(perUnit(pace, unit) - perUnit(previousPace, unit), true),
+          : durationDiff(paceSecondsPer(pace, unit) - paceSecondsPer(previousPace, unit), true),
     },
   ]
 }
@@ -169,16 +170,6 @@ function durationDiff(seconds: number, lowerIsBetter: boolean): Diff {
   const text = formatDuration(Math.abs(seconds))
   const better = lowerIsBetter ? seconds < 0 : seconds > 0
   return { text: seconds > 0 ? `+${text}` : `−${text}`, sign: better ? 'up' : 'down' }
-}
-
-/** 1km あたりの秒を、距離の単位あたりの秒（整数）に */
-function perUnit(secondsPerKm: number, unit: DistanceUnit): number {
-  return unit === 'mi' ? Math.round(secondsPerKm * KM_PER_MILE) : secondsPerKm
-}
-
-/** 「6:00/km」。記録の詳細のペース（formatPace）と同じく、分は 60 を超えてもそのまま出す */
-function paceText(seconds: number, unit: DistanceUnit): string {
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}/${unit}`
 }
 
 /** 「11/8」 */
