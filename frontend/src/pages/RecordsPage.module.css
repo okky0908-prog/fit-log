@@ -1,6 +1,23 @@
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 .title {
   margin: 0 0 12px;
   font-size: 1.25rem;
+}
+
+.head .title {
+  margin: 0;
+}
+
+.headLink {
+  font-weight: 600;
 }
 
 .tabs {
@@ -181,4 +198,50 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* S-21 のベスト記録 */
+.bests {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.best {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 0;
+  color: var(--color-text);
+}
+
+.bestLink {
+  padding: 4px 0;
+  text-decoration: none;
+}
+
+.bestLink:hover .bestValue {
+  text-decoration: underline;
+}
+
+.bestValue {
+  font-size: 1.125rem;
+}
+
+.bestDetail,
+.note {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.chevron {
+  margin-left: auto;
+  color: var(--color-text-muted);
+}
+
+.note {
+  margin: 2px 0 0;
 }

@@ -338,3 +338,34 @@ export interface CalendarDates {
   month: string
   dates: string[]
 }
+
+/** A-94 ランニングの集計値。平均ペースは、距離のある記録がなければ null */
+export interface RunningSummary {
+  distanceKm: number
+  durationSec: number
+  runCount: number
+  avgPaceSecPerKm: number | null
+}
+
+/** A-94 のベスト記録（最速ペース・最長距離）の1回 */
+export interface BestRun {
+  workoutId: number
+  performedOn: string
+  distanceKm: number
+  durationSec: number
+  paceSecPerKm: number | null
+}
+
+/** A-94 ランニングの集計（週間・月間・年間） */
+export interface RunningStats {
+  from: string
+  to: string
+  summary: RunningSummary
+  previous: RunningSummary
+  /** 1km 以上の記録のうち、ペースが一番速い1回。なければ null */
+  bestPace: BestRun | null
+  /** 距離が一番長い1回。なければ null */
+  longestRun: BestRun | null
+  /** 年間のときだけ、1〜12月の走行距離（記録のない月も 0）。それ以外は空 */
+  monthly: { month: string; distanceKm: number }[]
+}

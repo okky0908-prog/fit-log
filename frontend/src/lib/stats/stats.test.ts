@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import type { MonthlyStats, StatsSummary, WeeklyStats } from '../api/types'
 import type { Units } from '../format/workout'
 import {
+  axisLabel,
   bodyPartRows,
   dailyPoints,
   formatDiff,
@@ -184,5 +185,18 @@ describe('部位別のセット数', () => {
 
   test('なければ空', () => {
     expect(bodyPartRows([])).toEqual([])
+  })
+})
+
+describe('グラフの横軸の目盛り', () => {
+  test('スマートフォンの幅でも全部出るよう、「〜」と、月の「月」を省く（表とツールチップには省かずに出す）', () => {
+    expect(axisLabel('11/2〜')).toBe('11/2')
+    expect(axisLabel('1月')).toBe('1')
+    expect(axisLabel('12月')).toBe('12')
+  })
+
+  test('曜日の「月」（月曜）は省かない', () => {
+    expect(axisLabel('月')).toBe('月')
+    expect(axisLabel('火')).toBe('火')
   })
 })

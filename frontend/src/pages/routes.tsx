@@ -9,6 +9,7 @@ import { NotificationsPage } from './NotificationsPage'
 import { ProfileEditPage } from './ProfileEditPage'
 import { ProfilePage } from './ProfilePage'
 import { RecordsPage } from './RecordsPage'
+import { RunningPage } from './RunningPage'
 import { SignupPage } from './SignupPage'
 import { VerifyEmailPage } from './VerifyEmailPage'
 import { WorkoutDetailPage } from './WorkoutDetailPage'
@@ -47,6 +48,7 @@ export const routes: RouteObject[] = [
               { path: '/notifications', element: <NotificationsPage /> },
               { path: '/records', element: <RecordsPage key="week" kind="week" /> },
               { path: '/records/month', element: <RecordsPage key="month" kind="month" /> },
+              { path: '/records/running', element: <RunningPage /> },
               { path: '/users/:username', element: <ProfilePage /> },
               { path: '/settings/profile', element: <ProfileEditPage /> },
               {
